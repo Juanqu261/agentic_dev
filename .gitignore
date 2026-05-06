@@ -1,0 +1,119 @@
+# ─────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.hypothesis/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# uv
+.uv/
+uv.lock
+
+# ─────────────────────────────────────────
+# Node / JavaScript / React
+# ─────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.nuxt/
+.output/
+
+# Cache
+.cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ─────────────────────────────────────────
+# Environment & Secrets
+# ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ─────────────────────────────────────────
+# ChromaDB (runtime vector DB data)
+# ─────────────────────────────────────────
+chroma_data/
+chroma-data/
+*.chroma
+*.sqlite3
+
+# ─────────────────────────────────────────
+# Pod workspaces (per-developer, not tracked)
+# ─────────────────────────────────────────
+pods/*/workspace/
+!pods/.gitkeep
+
+# ─────────────────────────────────────────
+# Docker
+# ─────────────────────────────────────────
+.docker/
+
+# ─────────────────────────────────────────
+# IDEs & Editors
+# ─────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ─────────────────────────────────────────
+# OS artifacts
+# ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ─────────────────────────────────────────
+# Logs
+# ─────────────────────────────────────────
+*.log
+logs/
