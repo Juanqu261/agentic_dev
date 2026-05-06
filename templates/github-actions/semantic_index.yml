@@ -1,0 +1,35 @@
+# Template: Semantic Index Workflow for Target Projects
+# ─────────────────────────────────────────────────────────────
+# This file is managed by agentic-devstudio.
+# It is injected into target repos by the Git Gatekeeper agent.
+#
+# Purpose: After every merge to main in the TARGET repo, this
+# workflow calls the studio's indexer to update ChromaDB with
+# a semantic summary of the new code. This keeps all pods
+# synchronized — if Dev A merges AuthService.ts, Dev B's pod
+# will find it in ChromaDB before starting LoginForm.tsx.
+# ─────────────────────────────────────────────────────────────
+
+name: Semantic Index Update
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history so the indexer can diff
+
+      - name: Call agentic-devstudio indexer
+        env:
+          STUDIO_API_URL: ${{ secrets.STUDIO_API_URL }}
+          STUDIO_API_KEY: ${{ secrets.STUDIO_API_KEY }}
+        run: |
+          curl -X POST "$STUDIO_API_URL/index" \
+            -H "Authorization: Bearer $STUDIO_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"repo": "${{ github.repository }}", "ref": "${{ github.sha }}"}'

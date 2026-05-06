@@ -1,0 +1,28 @@
+# Template: CI Workflow for Target Projects
+# ─────────────────────────────────────────────────────────────
+# This file is managed by agentic-devstudio.
+# It is injected into target repos by the Git Gatekeeper agent
+# when a new project is initialized or a pod is bootstrapped.
+#
+# DO NOT edit manually in the target repo — changes will be
+# overwritten the next time the studio syncs templates.
+# ─────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Add target-project-specific steps here:
+      # e.g. npm install && npm test, pytest, etc.
+      # The studio's bootstrap_pod script populates these
+      # based on the target project's detected tech stack.
