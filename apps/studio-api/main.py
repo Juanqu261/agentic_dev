@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from pod_brain import get_graph
-from studio_api.routes import agui as agui_routes
+from routes import agui as agui_routes
 
 
 @asynccontextmanager

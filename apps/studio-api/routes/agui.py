@@ -10,7 +10,6 @@ from pod_brain import HumanDecision, PodState, get_graph
 
 router = APIRouter(prefix="/api", tags=["agui"])
 
-# LangGraph event type → AG-UI event type mapping
 _AGUI_MAP: dict[str, str] = {
     "on_chain_start": "RUN_STARTED",
     "on_chain_end": "RUN_FINISHED",
@@ -38,11 +37,7 @@ class ResumeRequest(BaseModel):
 
 @router.post("/run")
 async def run_task(payload: RunRequest):
-    """
-    Start a new agent run. Returns an SSE stream of AG-UI events.
-    The stream pauses at interrupt points (human review) and resumes
-    after POST /api/resume is called.
-    """
+    """Start a new agent run. Returns an SSE stream of AG-UI events."""
     graph = await get_graph()
 
     initial_state: PodState = {
@@ -79,10 +74,7 @@ async def run_task(payload: RunRequest):
 
 @router.post("/resume")
 async def resume_task(payload: ResumeRequest):
-    """
-    Resume a paused run after a human-review interrupt.
-    Injects a HumanDecision into the graph state then resumes streaming.
-    """
+    """Resume a paused run after a human-review interrupt."""
     graph = await get_graph()
     config = {"configurable": {"thread_id": payload.thread_id}}
 
