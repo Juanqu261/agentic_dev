@@ -98,16 +98,24 @@ User: "Build a login form for github.com/org/my-app"
 # Install all workspace packages (uv recommended)
 uv sync --all-packages
 
-# Run unit tests (no external services needed)
+# Run unit tests (no external services needed — mocks replace LLM and MCP)
 uv run pytest packages/pod-brain/tests/ -v
 
 # Start the API (requires POD_BRAIN_ANTHROPIC_API_KEY env var)
-uv run uvicorn apps.studio_api.main:app --reload
+# --app-dir adds apps/studio-api/ to sys.path so "from routes import agui" resolves
+uv run uvicorn main:app --app-dir apps/studio-api --reload
 
 # Trigger a task (SSE stream)
+# If pod-mcp is not running, get_graph() falls back to mock toolsets automatically.
+# Architect will call real Claude; Builder/QA tool calls will be no-ops.
 curl -N -X POST http://localhost:8000/api/run \
   -H "Content-Type: application/json" \
   -d '{"task":"Add a hello world endpoint","target_repo":"/path/to/repo","thread_id":"dev1-req1"}'
+
+# Resume after design-review interrupt (human approves)
+curl -X POST http://localhost:8000/api/resume \
+  -H "Content-Type: application/json" \
+  -d '{"thread_id":"dev1-req1","approved":true}'
 ```
 
 ### uv workspace model
@@ -134,14 +142,6 @@ Regenerate it with: `uv export --all-packages --no-hashes --no-editable > requir
 
 ## What's Next (Phase 2 — pod-mcp)
 
-The pod-brain is wired to call MCP tools but pod-mcp doesn't exist yet.
-Phase 2 goal: implement the MCP server so the Builder and QA agents can actually
-read/write files and run commands in a target repo.
-
-Files to implement in `packages/pod-mcp/pod_mcp/`:
-- `server.py` — FastMCP or raw MCP server, exposes tools over SSE on port 8001
-- `tools/filesystem.py` — `read_file`, `write_file`, `list_directory`, `search_files`
-- `tools/shell.py` — `execute_command` (sandboxed, working dir = target repo)
-- `tools/git_gatekeeper.py` — `create_branch`, `commit`, `open_pr`
-
-Tool names must match exactly what `pod_brain/tools/__init__.py` picks by name.
+pod-brain is fully wired to call MCP tools but pod-mcp is not implemented yet.
+See `.context/decisions/003-pod-mcp-architecture.md` for the full design:
+local vs remote modes, tool contract, and files to implement.
