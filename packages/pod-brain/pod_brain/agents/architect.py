@@ -1,1 +1,105 @@
- 
+from __future__ import annotations
+
+import hashlib
+
+import chromadb
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import BaseTool
+
+from pod_brain.config import settings
+from pod_brain.graph.state import DesignPlan, PodState
+
+ARCHITECT_SYSTEM_PROMPT = """
+You are the Architect agent in Agentic DevStudio.
+
+Your job:
+1. Analyze the user's task.
+2. Use the provided repository context to understand existing patterns and conventions.
+3. Produce a precise design plan specifying:
+   - Which files to create and which to modify (relative paths from repo root)
+   - A git branch name in kebab-case prefixed with "feat/" and suffixed with a short UUID
+   - Architectural constraints the Builder must respect (imports, naming, patterns)
+   - A concise human-readable summary
+
+Rules:
+- Never generate actual code — that is the Builder's job.
+- If the task is ambiguous, make the safest conservative assumption and note it in constraints.
+- Respond ONLY with a valid JSON object matching the DesignPlan schema.
+""".strip()
+
+
+async def _query_pod_memory(
+    task: str,
+    target_repo: str,
+    chroma_url: str,
+    n_results: int = 5,
+) -> list[str]:
+    """
+    Retrieve semantically relevant code snippets from pod-memory's ChromaDB.
+    Collection is namespaced per target repo. Returns [] gracefully on any error
+    (new unindexed repo, ChromaDB unreachable, etc.).
+    """
+    collection_name = "repo_" + hashlib.md5(target_repo.encode()).hexdigest()[:12]
+    try:
+        client = chromadb.AsyncHttpClient(host=chroma_url)
+        collection = await client.get_collection(collection_name)
+        results = await collection.query(
+            query_texts=[task],
+            n_results=n_results,
+            include=["documents"],
+        )
+        docs: list[str] = results["documents"][0] if results["documents"] else []
+        return docs
+    except Exception:
+        return []
+
+
+async def architect_node(
+    state: PodState,
+    *,
+    tools: list[BaseTool],
+    llm: ChatAnthropic | None = None,
+    chroma_url: str | None = None,
+) -> dict:
+    """
+    LangGraph node. Queries pod-memory for context then produces a DesignPlan.
+    Bound into the graph via functools.partial to inject tools and llm.
+    """
+    _llm = llm or ChatAnthropic(
+        model=settings.anthropic_model,
+        api_key=settings.anthropic_api_key,
+        temperature=0,
+    )
+    _chroma_url = chroma_url or settings.chroma_url
+
+    tech_context = await _query_pod_memory(
+        task=state["task"],
+        target_repo=state["target_repo"],
+        chroma_url=_chroma_url,
+    )
+
+    context_block = "\n---\n".join(tech_context) if tech_context else "No existing context found for this repo."
+
+    messages = [
+        SystemMessage(content=ARCHITECT_SYSTEM_PROMPT),
+        HumanMessage(
+            content=(
+                f"Task: {state['task']}\n\n"
+                f"Target repo: {state['target_repo']}\n\n"
+                f"Existing codebase context:\n{context_block}"
+            )
+        ),
+    ]
+
+    structured_llm = _llm.with_structured_output(DesignPlan)
+    design_plan: DesignPlan = await structured_llm.ainvoke(messages)
+
+    return {
+        "design_plan": design_plan,
+        "current_node": "architect",
+        "next_node": "supervisor",
+        "architect_iterations": state["architect_iterations"] + 1,
+        "messages": messages + [design_plan.model_dump()],
+        "status": "running",
+    }

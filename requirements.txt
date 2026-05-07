@@ -1,0 +1,50 @@
+# Agentic DevStudio — global requirements
+#
+# PRIMARY: use uv (recommended)
+#   uv sync --all-packages            → installs everything including dev deps
+#   uv sync --package pod-brain       → installs only pod-brain + its deps
+#   uv run pytest packages/pod-brain/tests/
+#
+# FALLBACK: use pip (e.g. Docker builds without uv, bare CI environments)
+#   pip install -r requirements.txt
+#
+# This file is generated from all workspace members' pyproject.toml deps.
+# Keep it in sync manually or regenerate with:
+#   uv export --all-packages --no-hashes --no-editable > requirements.txt
+# =============================================================================
+
+# ── Workspace members (installed as editable local packages) ─────────────────
+-e ./packages/pod-brain
+-e ./packages/pod-mcp
+-e ./packages/pod-memory
+-e ./apps/studio-api
+
+# ── pod-brain ────────────────────────────────────────────────────────────────
+langgraph>=0.3.0
+langchain-core>=0.3.0
+langchain-anthropic>=0.3.0
+langchain-mcp-adapters>=0.1.0
+langgraph-checkpoint-sqlite>=0.1.0
+chromadb>=0.6.0
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+httpx>=0.27.0
+
+# ── pod-mcp ──────────────────────────────────────────────────────────────────
+mcp>=1.0.0
+gitpython>=3.1.0
+
+# ── pod-memory ───────────────────────────────────────────────────────────────
+# (chromadb already listed above)
+
+# ── studio-api ───────────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+
+# ── dev / test (all packages) ────────────────────────────────────────────────
+ruff>=0.4.0
+mypy>=1.10.0
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+pytest-mock>=3.14.0
+anyio>=4.4.0

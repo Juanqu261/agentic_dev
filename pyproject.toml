@@ -1,1 +1,13 @@
- 
+[tool.uv.workspace]
+members = [
+    "packages/pod-brain",
+    "packages/pod-mcp",
+    "packages/pod-memory",
+    "apps/studio-api",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+]
