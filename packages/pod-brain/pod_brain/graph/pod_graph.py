@@ -178,12 +178,17 @@ async def get_graph(
         resolved_db = db_path or settings.checkpointer_db
 
         if resolved_db.startswith("postgres"):
-            from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-            # Open connection and keep it alive for the process lifetime.
-            # The caller (FastAPI lifespan) is responsible for app shutdown cleanup.
-            conn = await AsyncPostgresSaver.from_conn_string(resolved_db).__aenter__()
-            graph_builder = _compile_graph(ts, conn)
-            _graph_instance = graph_builder
+            try:
+                from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+            except ImportError as exc:
+                raise ImportError(
+                    "Postgres checkpointer requires an extra dependency. "
+                    "Install it with:  pip install 'pod-brain[postgres]'"
+                ) from exc
+            # Keep the context manager open for the process lifetime.
+            # FastAPI lifespan is responsible for graceful shutdown.
+            async with AsyncPostgresSaver.from_conn_string(resolved_db) as pg_checkpointer:
+                _graph_instance = _compile_graph(ts, pg_checkpointer)
         else:
             _graph_instance = build_graph(toolsets=ts, checkpointer_db=resolved_db)
 
