@@ -9,7 +9,7 @@ Deployment options:
 - **Docker**: `docker run agentic-devstudio` pointed at a target repo
 
 ## Current Phase
-**Phase 1 — The Brain (pod-brain) — complete**
+**Phase 2 — The Hands & Nerves (pod-mcp + AG-UI) — complete**
 
 ## What's Done
 - [x] Monorepo structure scaffolded
@@ -32,10 +32,14 @@ Deployment options:
 - [x] `apps/studio-api/routes/agui.py` — `POST /api/run` (SSE) + `POST /api/resume`
 - [x] Unit tests for state, supervisor routing, architect, builder, QA, graph
 
-## What's Next (Phase 2 — The Hands & Nerves)
-- [ ] Implement `packages/pod-mcp/` — MCP server with filesystem, shell, git tools
-- [ ] Wire AG-UI streaming to CopilotKit frontend (pod-ui)
-- [ ] Connect studio-api SSE stream to CopilotKit `useCoAgent` hook
+- [x] `packages/pod-mcp/` — MCP server implemented (FastMCP + FastAPI, port 8001)
+- [x] `apps/studio-api/routes/agui.py` — AG-UI enriched: `NODE_STARTED`, `INTERRUPT`, `DONE` events
+- [x] `.env.example` — all env vars documented at repo root
+
+## What's Next (Phase 3 — The Mind & UI)
+- [ ] Implement `packages/pod-memory/` — ChromaDB indexer/retriever for target repo code
+- [ ] Implement `apps/studio-ui/` — React + CopilotKit dashboard
+- [ ] Connect studio-ui SSE stream to CopilotKit `useCoAgent` hook
 
 ## Key Decisions Made
 - See `.context/decisions/` for ADRs
