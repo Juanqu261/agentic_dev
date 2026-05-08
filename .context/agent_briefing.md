@@ -134,12 +134,6 @@ every member as an editable install. Cross-member deps (e.g. `studio-api` depend
 `requirements.txt` at the repo root is the pip fallback (Docker / bare CI).
 Regenerate it with: `uv export --all-packages --no-hashes --no-editable > requirements.txt`
 
-## Source of Truth Docs
-- `README.md` — goals and architecture overview
-- `Phases.md` — 5-phase implementation plan
-- `architecture.md` — layer diagram and communication protocols
-- `.context/project_state.md` — current completion checklist
-
 ## What's Next (Phase 2 — pod-mcp)
 
 pod-brain is fully wired to call MCP tools but pod-mcp is not implemented yet.
