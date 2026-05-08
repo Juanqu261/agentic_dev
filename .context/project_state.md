@@ -36,9 +36,8 @@ Deployment options:
 - [x] `apps/studio-api/routes/agui.py` — AG-UI enriched: `NODE_STARTED`, `INTERRUPT`, `DONE` events
 - [x] `.env.example` — all env vars documented at repo root
 
-## What's Next (Phase 3 — The Mind & UI)
+## What's Next (Phase 3 — The Mind)
 - [ ] Implement `packages/pod-memory/` — ChromaDB indexer/retriever for target repo code
-- [ ] Implement `apps/studio-ui/` — React + CopilotKit dashboard
 - [ ] Connect studio-ui SSE stream to CopilotKit `useCoAgent` hook
 
 ## Key Decisions Made

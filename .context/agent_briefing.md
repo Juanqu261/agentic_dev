@@ -127,4 +127,3 @@ Cross-member deps are linked locally (editable installs). Regenerate pip fallbac
 
 ## What's Next (Phase 3 — The Mind & UI)
 - `packages/pod-memory/` — ChromaDB indexer/retriever for TARGET repo code
-- `apps/studio-ui/` — React + CopilotKit dashboard wired to `/api/run` + `/api/resume`
