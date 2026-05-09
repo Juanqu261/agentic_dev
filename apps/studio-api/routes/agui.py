@@ -32,11 +32,13 @@ _AGUI_MAP: dict[str, str] = {
 
 _NODE_LABELS: dict[str, str] = {
     "architect": "Architect is planning...",
+    "conflict_check": "Checking for conflicts with other pods...",
     "builder": "Builder is writing code...",
     "qa": "QA is testing...",
     "supervisor": "Supervisor is routing...",
     "human_review": "Awaiting human review...",
     "tool_executor": "Executing tools...",
+    "pr_creator": "Opening pull request...",
 }
 
 
@@ -128,6 +130,7 @@ async def run_task(payload: RunRequest):
         "awaiting_human": False,
         "human_instructions": "",
         "files_written": [],
+        "conflicts": [],
         "branch_name": None,
         "pr_url": None,
         "error": None,

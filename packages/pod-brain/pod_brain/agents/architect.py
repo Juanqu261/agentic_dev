@@ -72,6 +72,14 @@ async def architect_node(
 
     context_block = "\n---\n".join(tech_context) if tech_context else "No existing context found for this repo."
 
+    conflict_warning = ""
+    if state.get("conflicts"):
+        names = [c["branch"] for c in state["conflicts"]]
+        conflict_warning = (
+            f"\n\nWARNING: Active branches touching overlapping files: {names}. "
+            "Coordinate naming to avoid conflicts."
+        )
+
     messages = [
         SystemMessage(content=ARCHITECT_SYSTEM_PROMPT),
         HumanMessage(
@@ -79,6 +87,7 @@ async def architect_node(
                 f"Task: {state['task']}\n\n"
                 f"Target repo: {state['target_repo']}\n\n"
                 f"Existing codebase context:\n{context_block}"
+                f"{conflict_warning}"
             )
         ),
     ]

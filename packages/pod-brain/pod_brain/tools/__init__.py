@@ -38,7 +38,7 @@ async def load_mcp_tools(url: str | None = None) -> AgentToolsets:
     return AgentToolsets(
         architect=pick("read_file", "list_directory", "get_file_tree", "search_files", "find_in_files"),
         builder=pick("read_file", "write_file", "edit_file", "delete_file", "create_branch",
-                     "git_add", "git_commit", "list_directory", "execute_command"),
+                     "git_add", "git_commit", "open_pr", "list_directory", "execute_command"),
         qa=pick("execute_command", "read_file", "find_in_files", "git_diff", "list_directory"),
     )
 
