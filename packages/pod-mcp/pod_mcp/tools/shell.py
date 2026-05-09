@@ -3,10 +3,13 @@ from __future__ import annotations
 import asyncio
 import os
 import subprocess
+import sys
 import tempfile
 
 from pod_mcp.mcp_instance import mcp
 from pod_mcp.tools._security import _repo_root
+
+_IS_WINDOWS = sys.platform == "win32"
 
 _MAX_TIMEOUT = 300
 _MIN_TIMEOUT = 1
@@ -19,12 +22,21 @@ async def execute_command(command: str, timeout: int = 30) -> str:
     timeout = min(max(_MIN_TIMEOUT, timeout), _MAX_TIMEOUT)
 
     def _run() -> tuple[str, int]:
+        # On Windows use PowerShell so agents can use PS syntax (Get-Command, $null, etc.)
+        # instead of cmd.exe which lacks common Unix utilities.
+        if _IS_WINDOWS:
+            args = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
+            use_shell = False
+        else:
+            args = command
+            use_shell = True
+
         # Redirect to a temp file instead of PIPE to avoid the Windows deadlock where
         # subprocess.run()/communicate() re-drains pipes after kill() without a timeout.
         with tempfile.TemporaryFile() as out_file:
             with subprocess.Popen(
-                command,
-                shell=True,
+                args,
+                shell=use_shell,
                 cwd=cwd,
                 stdout=out_file,
                 stderr=subprocess.STDOUT,
@@ -42,6 +54,9 @@ async def execute_command(command: str, timeout: int = 30) -> str:
 
     output, returncode = await asyncio.get_event_loop().run_in_executor(None, _run)
 
+    # Return exit code in output rather than raising so agents can inspect all
+    # output (including partial stdout) and decide whether failure is fatal.
     if returncode != 0:
-        raise RuntimeError(f"Command exited with code {returncode}:\n{output}")
+        prefix = f"[exit code {returncode}]\n"
+        return prefix + output if output.strip() else prefix.strip()
     return output
