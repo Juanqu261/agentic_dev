@@ -10,8 +10,8 @@ _REPO_ROOT = Path(__file__).parents[3]
 
 
 class PodBrainSettings(BaseSettings):
-    anthropic_model: str = "claude-sonnet-4-5"
-    anthropic_api_key: str = ""
+    gemini_model: str = "gemini-2.5-pro"
+    gemini_api_key: str = ""
     pod_mcp_url: str = "http://localhost:8001"
     chroma_url: str = "http://localhost:8000"
     # Accepts ":memory:", a SQLite file path, or a "postgres://..." URL
@@ -30,9 +30,9 @@ class PodBrainSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _warn_missing_api_key(self) -> "PodBrainSettings":
-        if not self.anthropic_api_key:
+        if not self.gemini_api_key:
             warnings.warn(
-                "POD_BRAIN_ANTHROPIC_API_KEY is not set — LLM calls will fail at runtime. "
+                "POD_BRAIN_GEMINI_API_KEY is not set — LLM calls will fail at runtime. "
                 "Set it in your environment or in a .env file at the repo root.",
                 stacklevel=2,
             )

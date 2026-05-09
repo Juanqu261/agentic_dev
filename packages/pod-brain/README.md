@@ -171,8 +171,8 @@ All settings are read from env vars prefixed `POD_BRAIN_` or from a `.env` file 
 
 | Env var | Default | Description |
 |---|---|---|
-| `POD_BRAIN_ANTHROPIC_API_KEY` | _(required)_ | Anthropic API key |
-| `POD_BRAIN_ANTHROPIC_MODEL` | `claude-sonnet-4-5` | Model for all three agents |
+| `POD_BRAIN_GEMINI_API_KEY` | _(required)_ | Google Gemini API key |
+| `POD_BRAIN_GEMINI_MODEL` | `gemini-2.5-pro` | Model for all three agents |
 | `POD_BRAIN_POD_MCP_URL` | `http://localhost:8001` | pod-mcp server base URL |
 | `POD_BRAIN_CHROMA_URL` | `http://localhost:8000` | ChromaDB server URL |
 | `POD_BRAIN_CHECKPOINTER_DB` | `:memory:` | SQLite path or `postgres://...` |

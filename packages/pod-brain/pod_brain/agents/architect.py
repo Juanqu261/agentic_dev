@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import httpx
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
 
@@ -50,16 +50,16 @@ async def architect_node(
     state: PodState,
     *,
     tools: list[BaseTool],
-    llm: ChatAnthropic | None = None,
+    llm: ChatGoogleGenerativeAI | None = None,
     chroma_url: str | None = None,
 ) -> dict:
     """
     LangGraph node. Queries pod-memory for context then produces a DesignPlan.
     Bound into the graph via functools.partial to inject tools and llm.
     """
-    _llm = llm or ChatAnthropic(
-        model=settings.anthropic_model,
-        api_key=settings.anthropic_api_key,
+    _llm = llm or ChatGoogleGenerativeAI(
+        model=settings.gemini_model,
+        api_key=settings.gemini_api_key,
         temperature=0,
     )
     _chroma_url = chroma_url or settings.chroma_url

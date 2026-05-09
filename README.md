@@ -50,6 +50,7 @@ cd agentic-devstudio
 
 # Install all dependencies
 uv sync --all-packages
+uv sync --all-extras
 
 # Configure environment
 Copy-Item .env.example .env

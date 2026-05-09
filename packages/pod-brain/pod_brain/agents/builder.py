@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
@@ -33,7 +33,7 @@ async def builder_node(
     state: PodState,
     *,
     tools: list[BaseTool],
-    llm: ChatAnthropic | None = None,
+    llm: ChatGoogleGenerativeAI | None = None,
 ) -> dict:
     """
     LangGraph node. Emits an AIMessage that may contain tool calls.
@@ -41,9 +41,9 @@ async def builder_node(
       builder → tool_executor → builder (until no tool calls remain) → qa
     Bound into the graph via functools.partial.
     """
-    _llm = llm or ChatAnthropic(
-        model=settings.anthropic_model,
-        api_key=settings.anthropic_api_key,
+    _llm = llm or ChatGoogleGenerativeAI(
+        model=settings.gemini_model,
+        api_key=settings.gemini_api_key,
         temperature=0,
     )
 

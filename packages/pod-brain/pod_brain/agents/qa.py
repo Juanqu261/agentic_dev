@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
@@ -34,7 +34,7 @@ async def qa_node(
     state: PodState,
     *,
     tools: list[BaseTool],
-    llm: ChatAnthropic | None = None,
+    llm: ChatGoogleGenerativeAI | None = None,
 ) -> dict:
     """
     LangGraph node. Two-phase execution:
@@ -42,9 +42,9 @@ async def qa_node(
       Phase 2: Separate structured-output call to evaluate results as QAResult.
     Bound into the graph via functools.partial.
     """
-    _llm = llm or ChatAnthropic(
-        model=settings.anthropic_model,
-        api_key=settings.anthropic_api_key,
+    _llm = llm or ChatGoogleGenerativeAI(
+        model=settings.gemini_model,
+        api_key=settings.gemini_api_key,
         temperature=0,
     )
 
