@@ -36,6 +36,95 @@ To prevent merge conflicts and human error:
 
 ---
 
+## Quick Start
+
+### 1. Prerequisites
+
+```powershell
+# Install uv (Python package manager)
+pip install uv
+
+# Clone and enter the repo
+git clone https://github.com/your-org/agentic-devstudio
+cd agentic-devstudio
+
+# Install all dependencies
+uv sync --all-packages
+
+# Configure environment
+Copy-Item .env.example .env
+# Open .env and set POD_BRAIN_ANTHROPIC_API_KEY and TARGET_REPO_PATH
+```
+
+### 2. Start all backend services (Windows)
+
+```powershell
+# Point at the repo you want agents to work on
+.\scripts\start_services.ps1 -TargetRepo "C:\path\to\your\target-repo"
+```
+
+This opens **three terminal windows** automatically:
+
+| Window | Service | Port |
+|---|---|---|
+| Green | `pod-memory` — ChromaDB semantic index | 8000 |
+| Yellow | `pod-mcp` — filesystem / shell / git tools | 8001 |
+| Magenta | `studio-api` — agent orchestration API | 8080 |
+
+Wait ~10 seconds for the sentence-transformer model to load before sending requests.
+
+> **`-TargetRepo`** sets the root directory the Builder and QA agents will read and write files in. It must be an absolute path to an existing local directory (your cloned project). You can also set `TARGET_REPO_PATH` in `.env` and omit the flag.
+
+### 3. Trigger your first task
+
+```powershell
+# Start a new agent run — replace the values with your task and repo name
+curl -N -X POST http://localhost:8080/api/run `
+  -H "Content-Type: application/json" `
+  -d '{
+    "task": "Create a simple hello world webpage for kids using HTML, CSS, and JavaScript (basics).",
+    "target_repo": "example",
+    "thread_id": "dev1-task1"
+  }'
+```
+
+The response is a **Server-Sent Events stream**. You will see events like:
+```
+data: {"type": "NODE_STARTED", "data": {"node": "architect", "label": "Architect is planning..."}}
+data: {"type": "INTERRUPT", "data": {"message": "Human review required.", "thread_id": "dev1-task1"}}
+```
+
+When you receive `INTERRUPT`, inspect the design plan and resume:
+
+```powershell
+# Approve the plan and let the Builder proceed
+curl -X POST http://localhost:8080/api/resume `
+  -H "Content-Type: application/json" `
+  -d '{
+    "thread_id": "dev1-task1",
+    "approved": true,
+    "comment": "Looks good, proceed"
+  }'
+```
+
+### 4. Optional — index the target repo for semantic context
+
+Before running tasks, index the target repo so the Architect agent has codebase awareness:
+
+```powershell
+curl -X POST http://localhost:8000/index `
+  -H "Content-Type: application/json" `
+  -d '{
+    "repo_path": "C:\\path\\to\\your\\target-repo",
+    "repo_id": "org/my-app"
+  }'
+# Returns: {"indexed": 142, "repo_id": "org/my-app"}
+```
+
+> **`repo_id`** is a free-form string identifier for the repo (e.g. `"org/my-app"`). It must match the `target_repo` field you pass to `/api/run` — the Architect uses it to query the right chunks from ChromaDB.
+
+---
+
 ## Updated Ecosystem Setup
 
 ### Step 1: The Global Registry
