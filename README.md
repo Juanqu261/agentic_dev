@@ -76,7 +76,35 @@ Wait ~10 seconds for the sentence-transformer model to load before sending reque
 
 > **`-TargetRepo`** sets the root directory the Builder and QA agents will read and write files in. It must be an absolute path to an existing local directory (your cloned project). You can also set `TARGET_REPO_PATH` in `.env` and omit the flag.
 
-### 3. Trigger your first task
+### 3. Start the frontend (Next.js UI)
+
+The web UI lives in `apps/studio-ui`. It posts tasks to `studio-api`, streams progress live and renders the human-review interrupt as a modal.
+
+```powershell
+cd apps\studio-ui
+
+# Install JS dependencies (first time only)
+npm install
+
+# Point the UI at studio-api (defaults to http://localhost:8000)
+"NEXT_PUBLIC_API_BASE_URL=http://localhost:8080" | Out-File -Encoding utf8 .env.local
+
+# Start the dev server (Turbopack)
+npm run dev
+```
+
+Open http://localhost:3000 — fill in the task and `target_repo`, submit, and watch the activity log stream. When the agent pauses for review, approve or send instructions from the modal.
+
+Other scripts:
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Dev server with hot reload (port 3000) |
+| `npm run build` | Production build |
+| `npm run start` | Run the production build |
+| `npm run lint` | Lint with Next/ESLint |
+
+### 4. Trigger your first task
 
 ```powershell
 # Start a new agent run — replace the values with your task and repo name
@@ -108,7 +136,7 @@ curl -X POST http://localhost:8080/api/resume `
   }'
 ```
 
-### 4. Optional — index the target repo for semantic context
+### 5. Optional — index the target repo for semantic context
 
 Before running tasks, index the target repo so the Architect agent has codebase awareness:
 
