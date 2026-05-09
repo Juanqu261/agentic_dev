@@ -92,8 +92,10 @@ def open_pr(title: str, body: str, base: str = "main") -> str:
     remote_url = repo.remotes.origin.url
     owner_repo = _parse_github_owner_repo(remote_url)
 
-    # Push current branch to origin before opening PR
-    repo.remotes.origin.push(refspec=f"{head_branch}:{head_branch}")
+    # Push using an authenticated URL so the token is used in headless environments
+    # where no git credential helper is configured.
+    auth_url = f"https://{token}@github.com/{owner_repo}.git"
+    repo.git.push(auth_url, f"{head_branch}:{head_branch}", "--set-upstream")
 
     response = httpx.post(
         f"https://api.github.com/repos/{owner_repo}/pulls",
