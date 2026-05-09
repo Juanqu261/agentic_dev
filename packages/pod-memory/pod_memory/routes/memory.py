@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from pod_memory import indexer, retriever
+from pod_memory.config import settings
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ def _get_collection(request: Request):
     client = request.app.state.chroma
     ef = request.app.state.ef
     return client.get_or_create_collection(
-        name="pod-memory",
+        name=settings.collection_name,
         embedding_function=ef,
     )
 
