@@ -3,11 +3,21 @@ from __future__ import annotations
 import json
 from typing import AsyncGenerator
 
+
+def _json_default(obj):
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    if hasattr(obj, "dict"):
+        return obj.dict()
+    return str(obj)
+
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from pod_brain import HumanDecision, PodState, get_graph
+from langgraph.types import Command
+
+from pod_brain import PodState, get_graph
 
 router = APIRouter(prefix="/api", tags=["agui"])
 
@@ -41,40 +51,57 @@ class RunRequest(BaseModel):
 class ResumeRequest(BaseModel):
     thread_id: str
     approved: bool
-    comment: str = ""
-    override_target: str | None = None
+    instructions: str = ""
 
 
 async def _stream_events(graph, initial_state, config) -> AsyncGenerator[str, None]:
     """Shared SSE generator for both /run and /resume."""
-    async for event in graph.astream_events(initial_state, config=config, version="v2"):
-        etype = event["event"]
-        ename = event.get("name", "")
+    interrupt_emitted = False
 
-        # 1. Interrupt — not in _AGUI_MAP, must be handled explicitly before the generic lookup
-        if etype == "on_interrupt":
+    try:
+        async for event in graph.astream_events(initial_state, config=config, version="v2"):
+            etype = event["event"]
+            ename = event.get("name", "")
+
+            # 1. Interrupt — explicit on_interrupt event (LangGraph may or may not emit this)
+            if etype == "on_interrupt":
+                interrupt_emitted = True
+                payload = {
+                    "type": "INTERRUPT",
+                    "data": {
+                        "message": event.get("data", {}).get("value", "Human review required."),
+                        "thread_id": config["configurable"]["thread_id"],
+                    },
+                }
+                yield f"data: {json.dumps(payload, default=_json_default)}\n\n"
+                continue
+
+            # 2. Node-level progress label
+            if etype == "on_chain_start" and ename in _NODE_LABELS:
+                label_payload = {
+                    "type": "NODE_STARTED",
+                    "data": {"node": ename, "label": _NODE_LABELS[ename]},
+                }
+                yield f"data: {json.dumps(label_payload, default=_json_default)}\n\n"
+
+            # 3. Generic map
+            if agui_type := _AGUI_MAP.get(etype):
+                yield f"data: {json.dumps({'type': agui_type, 'data': event.get('data', {})}, default=_json_default)}\n\n"
+
+    except Exception as exc:
+        yield f"data: {json.dumps({'type': 'RUN_ERROR', 'data': {'error': str(exc)}})}\n\n"
+
+    # Fallback: detect interrupt via checkpoint state if the event wasn't surfaced
+    if not interrupt_emitted:
+        snapshot = await graph.aget_state(config)
+        if snapshot.next:
+            interrupts = [i for task in snapshot.tasks for i in getattr(task, "interrupts", [])]
+            message = str(interrupts[0].value) if interrupts else "Human review required."
             payload = {
                 "type": "INTERRUPT",
-                "data": {
-                    "message": event.get("data", {}).get("value", "Human review required."),
-                    "thread_id": config["configurable"]["thread_id"],
-                },
+                "data": {"message": message, "thread_id": config["configurable"]["thread_id"]},
             }
-            yield f"data: {json.dumps(payload)}\n\n"
-            continue
-
-        # 2. Node-level progress label — whitelist prevents noise from internal LangChain chain names
-        if etype == "on_chain_start" and ename in _NODE_LABELS:
-            label_payload = {
-                "type": "NODE_STARTED",
-                "data": {"node": ename, "label": _NODE_LABELS[ename]},
-            }
-            yield f"data: {json.dumps(label_payload)}\n\n"
-            # fall through — also emit the generic RUN_STARTED below
-
-        # 3. Generic map
-        if agui_type := _AGUI_MAP.get(etype):
-            yield f"data: {json.dumps({'type': agui_type, 'data': event.get('data', {})})}\n\n"
+            yield f"data: {json.dumps(payload, default=_json_default)}\n\n"
 
     yield 'data: {"type": "DONE"}\n\n'
 
@@ -99,6 +126,7 @@ async def run_task(payload: RunRequest):
         "qa_result": None,
         "human_decision": None,
         "awaiting_human": False,
+        "human_instructions": "",
         "files_written": [],
         "branch_name": None,
         "pr_url": None,
@@ -116,11 +144,8 @@ async def resume_task(payload: ResumeRequest):
     graph = await get_graph()
     config = {"configurable": {"thread_id": payload.thread_id}}
 
-    decision = HumanDecision(
-        approved=payload.approved,
-        comment=payload.comment,
-        override_target=payload.override_target,
-    )
-    await graph.aupdate_state(config, {"human_decision": decision, "awaiting_human": False})
+    # Command(resume=...) passes the value back to the interrupt() call inside the graph.
+    # approved=True routes to builder; False routes to done/failed.
+    command = Command(resume={"approved": payload.approved, "instructions": payload.instructions})
 
-    return StreamingResponse(_stream_events(graph, None, config), media_type="text/event-stream")
+    return StreamingResponse(_stream_events(graph, command, config), media_type="text/event-stream")
