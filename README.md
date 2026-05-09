@@ -13,10 +13,10 @@ Each team member operates their own SDLC stack:
 *   **CopilotKit:** The interface for the specific human developer to assign tasks.
 *   **A2UI:** Renders local previews of the component being built.
 
-### 2. Global Memory Layer (ChromaDB)
+### 2. Global Axiom Layer (ChromaDB Cloud)
 To keep the team synchronized without massive token costs:
-*   **Semantic Sync:** Every time a branch is merged, an agent generates a "Semantic Summary" of the changes and stores it in ChromaDB.
-*   **Context Injection:** When Dev B starts the "Home Page," their Agent Pod queries ChromaDB: *"What is the status of the Login Form?"* It receives the API endpoints and component names created by Dev A, ensuring consistent naming and integration.
+*   **Axiom Indexing:** Every time a branch is merged, an agent generates a semantic summary of the changes and stores it as **axioms** in ChromaDB Cloud — shared across all pods.
+*   **Axiom Injection:** When Dev B starts the "Home Page," their Architect agent queries the axiom layer: *"What is the status of the Login Form?"* It receives the API endpoints and component names created by Dev A, ensuring consistent naming and integration.
 
 ### 3. The "Traffic Light" (Git Orchestration)
 To prevent merge conflicts and human error:
@@ -29,7 +29,7 @@ To prevent merge conflicts and human error:
 ## Workflow: The Modular SDLC
 
 1.  **Task Allocation:** Human assigns `feat/login` to their Pod.
-2.  **Context Pull:** The Pod queries ChromaDB for existing UI patterns and shared constants.
+2.  **Context Pull:** The Architect agent queries the axiom layer for existing UI patterns and shared constants.
 3.  **Autonomous Build:** Builder Agent edits the files via **MCP (Filesystem Tool)**.
 4.  **Local QA:** QA Agent runs tests in an isolated **MCP Terminal**.
 5.  **Traffic Light Sync:** Agent creates a PR. If conflicts are detected with `main`, the **Architect Agent** proposes a resolution to the human.
@@ -122,14 +122,14 @@ curl -X POST http://localhost:8000/index `
 # Returns: {"indexed": 142, "repo_id": "org/my-app"}
 ```
 
-> **`repo_id`** is a free-form string identifier for the repo (e.g. `"org/my-app"`). It must match the `target_repo` field you pass to `/api/run` — the Architect uses it to query the right chunks from ChromaDB.
+> **`repo_id`** is a free-form string identifier for the repo (e.g. `"org/my-app"`). It must match the `target_repo` field you pass to `/api/run` — the Architect uses it to query the right axioms from ChromaDB.
 
 ---
 
 ## Updated Ecosystem Setup
 
 ### Step 1: The Global Registry
-*   Set up a shared **ChromaDB instance** (or a cloud-hosted vector DB) accessible by all team members' local environments.
+*   Set up **ChromaDB Cloud** (or a self-hosted instance) as the shared axiom store accessible by all pods.
 
 ### Step 2: GitHub / Git Middleware
 *   Initialize the **Git-Gatekeeper MCP Server**. This allows agents to run `git checkout -b`, `git pull`, and `gh pr create` based on task status.

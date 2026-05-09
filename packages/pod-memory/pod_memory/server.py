@@ -12,7 +12,13 @@ from pod_memory.routes.memory import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.chroma_host:
+    if settings.chroma_api_key and settings.chroma_tenant and settings.chroma_database:
+        client = chromadb.CloudClient(
+            tenant=settings.chroma_tenant,
+            database=settings.chroma_database,
+            api_key=settings.chroma_api_key,
+        )
+    elif settings.chroma_host:
         client = chromadb.HttpClient(
             host=settings.chroma_host,
             port=settings.chroma_port,
