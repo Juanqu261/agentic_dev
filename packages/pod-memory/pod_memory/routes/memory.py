@@ -24,6 +24,17 @@ class DeleteRequest(BaseModel):
     repo_id: str
 
 
+class AxiomItem(BaseModel):
+    id: str        # stable slug, e.g. "env::htmlhint-not-found"
+    content: str   # 1-2 sentence fact
+    type: str      # environment | tool | command | pattern
+
+
+class UpsertAxiomsRequest(BaseModel):
+    repo_id: str
+    axioms: list[AxiomItem]
+
+
 def _get_collection(request: Request):
     client = request.app.state.chroma
     ef = request.app.state.ef
@@ -55,6 +66,18 @@ def query_repo(body: QueryRequest, request: Request):
         n_results=body.n_results,
     )
     return {"results": results}
+
+
+@router.post("/axioms")
+def upsert_axioms(body: UpsertAxiomsRequest, request: Request):
+    collection = _get_collection(request)
+    if not body.axioms:
+        return {"upserted": 0, "repo_id": body.repo_id}
+    ids = [f"{body.repo_id}::axiom::{a.id}" for a in body.axioms]
+    documents = [a.content for a in body.axioms]
+    metadatas = [{"repo": body.repo_id, "type": a.type, "axiom_id": a.id} for a in body.axioms]
+    collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+    return {"upserted": len(ids), "repo_id": body.repo_id}
 
 
 @router.delete("/index")

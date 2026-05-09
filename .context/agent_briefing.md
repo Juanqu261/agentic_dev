@@ -17,7 +17,7 @@ User: "Build a login form for github.com/org/my-app"
 [ agentic-devstudio (THIS REPO) ]
   ├── pod-brain: LangGraph orchestrates Architect → Builder → QA
   ├── pod-mcp:   MCP server reads/writes files in the TARGET repo
-  ├── pod-memory: ChromaDB indexes the TARGET repo's code
+  ├── pod-memory: Axiom layer — indexes TARGET repo code as axioms in ChromaDB
   └── pod-ui:    Dashboard where the human assigns tasks
           │
           ▼
@@ -60,7 +60,7 @@ TARGET_REPO_PATH=/path/to/target uv run uvicorn pod_mcp.server:app --app-dir pac
 # Terminal 2 — Brain API
 uv run uvicorn main:app --app-dir apps/studio-api --port 8080 --reload
 
-# Terminal 3 — pod-memory (ChromaDB layer)
+# Terminal 3 — pod-memory (axiom layer)
 uv run uvicorn pod_memory.server:app --app-dir packages/pod-memory --port 8000
 
 # Trigger a task
@@ -129,7 +129,7 @@ Cross-member deps are linked locally (editable installs). Regenerate pip fallbac
 
 ## Phase 3 — pod-memory (complete)
 
-**`packages/pod-memory/pod_memory/`** (FastAPI + embedded ChromaDB, port 8000)
+**`packages/pod-memory/pod_memory/`** (FastAPI + ChromaDB (local / remote / Cloud), port 8000)
 - `config.py` — `PodMemorySettings` (`POD_MEMORY_*` prefix, pydantic-settings)
 - `indexer.py` — walks target repo files, chunks (~400 tok), upserts into ChromaDB; skips `.git/`, `node_modules/`, binaries
 - `retriever.py` — `query(repo_id, text, n_results)` → `[{path, content, distance}]`
@@ -141,3 +141,4 @@ Cross-member deps are linked locally (editable installs). Regenerate pip fallbac
 
 ## What's Next (Phase 4 — UI)
 - Connect studio-ui SSE stream to CopilotKit `useCoAgent` hook
+
