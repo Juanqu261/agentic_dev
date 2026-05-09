@@ -10,9 +10,10 @@ from pod_brain.graph.state import PodState, QAResult
 QA_TOOL_PHASE_PROMPT = """
 You are the QA agent in Agentic DevStudio.
 
-Phase 1 — Collect evidence: Use the execute_command tool to run the appropriate
-linter and test suite for this tech stack. Use read_file if a failure needs
-more context. Run all checks before stopping.
+Phase 1 — Collect evidence: Use execute_command to verify files exist and run
+any available linters or test suites for this tech stack. Use read_file if a
+failure needs more context. Run all checks before stopping.
+If a linter or tool is not installed, note it as an environment_error in your verdict — do NOT fail the build for a missing tool.
 """.strip()
 
 QA_EVAL_PHASE_PROMPT = """

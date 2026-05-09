@@ -4,7 +4,7 @@ import json
 import re
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
 from pod_brain.config import settings
@@ -55,10 +55,21 @@ async def builder_node(
     if qa and not qa.passed:
         failure_lines = "\n".join(f"- {f}" for f in qa.failures)
         feedback_text = f"\n\nPrevious QA feedback to address:\n{qa.feedback}\nFailures:\n{failure_lines}"
+    instructions = state.get("human_instructions", "")
+    if instructions:
+        feedback_text += f"\n\nHuman instructions:\n{instructions}"
+
+    # Include prior tool calls + results so the LLM knows what it already executed.
+    # Filter to AIMessage/ToolMessage only — excludes architect planning messages.
+    prior = [
+        m for m in state.get("messages", [])
+        if isinstance(m, (AIMessage, ToolMessage))
+    ]
 
     messages = [
         SystemMessage(content=BUILDER_SYSTEM_PROMPT),
         HumanMessage(content=f"Design Plan:\n{plan_text}{feedback_text}"),
+        *prior,
     ]
 
     llm_with_tools = _llm.bind_tools(tools)

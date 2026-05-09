@@ -34,8 +34,16 @@ def supervisor_node(state: PodState) -> dict:
 
     if node == "architect":
         if state["builder_iterations"] == 0:
-            # First build: pause for human design review
-            interrupt("Review the design plan before the Builder writes to the target repo.")
+            resume = interrupt("Review the design plan before the Builder writes to the target repo.")
+            if isinstance(resume, dict):
+                approved = resume.get("approved", False)
+                instructions = resume.get("instructions", "")
+            else:
+                approved = bool(resume)
+                instructions = ""
+            if not approved:
+                return {"next_node": "done", "status": "failed", "current_node": "supervisor"}
+            return {"next_node": "builder", "human_instructions": instructions, "current_node": "supervisor"}
         return {"next_node": "builder", "current_node": "supervisor"}
 
     if node == "qa" and qa is not None:

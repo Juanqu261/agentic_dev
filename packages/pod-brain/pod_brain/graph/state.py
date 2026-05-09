@@ -56,6 +56,7 @@ class PodState(TypedDict):
     # ── Human-in-the-loop ────────────────────────────────────────────────
     human_decision: HumanDecision | None
     awaiting_human: bool
+    human_instructions: str
 
     # ── Artifacts ────────────────────────────────────────────────────────
     branch_name: str | None
