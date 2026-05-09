@@ -24,7 +24,7 @@ async def load_mcp_tools(url: str | None = None) -> AgentToolsets:
     client = MultiServerMCPClient(
         {
             "pod-mcp": {
-                "url": f"{mcp_url}/mcp",
+                "url": f"{mcp_url}/mcp/sse",
                 "transport": "sse",
             }
         }
