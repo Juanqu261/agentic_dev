@@ -1,4 +1,3 @@
-/* CopilotKit brand fonts */
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300..800&family=Spline+Sans+Mono:wght@400;500;600&display=swap");
 
 @import "tailwindcss";
@@ -9,7 +8,7 @@
   --background: #ffffff;
   --foreground: #010507;
 
-  /* Semantic tokens — CopilotKit brand */
+  /* Semantic tokens */
   --card: #ffffff;
   --card-foreground: #010507;
   --primary: #010507;
@@ -33,26 +32,10 @@
 
   --radius: 0.75rem;
 
-  /* Override CopilotKit font */
-  --cpk-default-font-family: var(--font-body);
-
   /* Fonts */
   --font-body: "Plus Jakarta Sans", "DM Sans", "Segoe UI", sans-serif;
   --font-code:
     "Spline Sans Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
-
-  /* Brand accent colors */
-  --cpk-mint-400: #85ecce;
-  --cpk-mint-800: #189370;
-  --cpk-lilac-400: #bec2ff;
-  --cpk-orange-400: #ffac4d;
-  --cpk-yellow-400: #fff388;
-  --cpk-ambient-gradient: linear-gradient(
-    90deg,
-    #bec2ff 0%,
-    #85ecce 45.673%,
-    #ffac4d 100%
-  );
 }
 
 :root.dark,
@@ -90,21 +73,4 @@ body {
 body,
 html {
   height: 100%;
-}
-
-/*
- * Showcase highlight for suggestion pills.
- * Applied via className in use-example-suggestions.tsx when showcase.json
- * is set to a non-default mode (e.g. "a2ui", "opengenui"). Uses CopilotKit
- * brand colors with a subtle tinted background.
- * Add new showcase variants here following the same pattern.
- */
-[data-copilotkit] button[data-slot="suggestion-pill"].a2ui-highlight {
-  border-color: var(--cpk-lilac-400);
-  background: color-mix(in srgb, var(--cpk-lilac-400) 15%, var(--background));
-}
-
-[data-copilotkit] button[data-slot="suggestion-pill"].opengenui-highlight {
-  border-color: var(--cpk-mint-400);
-  background: color-mix(in srgb, var(--cpk-mint-400) 15%, var(--background));
 }

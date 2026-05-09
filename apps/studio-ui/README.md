@@ -1,206 +1,69 @@
-# CopilotKit <> LangGraph Starter
+# studio-ui
 
-This is a starter template for building AI agents using [LangGraph](https://www.langchain.com/langgraph) and [CopilotKit](https://copilotkit.ai). It provides a modern Next.js application with an integrated LangGraph agent to be built on top of.
+Frontend for **Agentic DevStudio**. A Next.js 16 + React 19 single-page app that drives the multi-agent orchestrator exposed by `apps/studio-api`.
 
-https://github.com/user-attachments/assets/47761912-d46a-4fb3-b9bd-cb41ddd02e34
+## What it does
 
-## Prerequisites
+1. The user describes a development task and points the agent at a target repository.
+2. The frontend opens a streaming SSE connection to `studio-api` (`POST /api/run`).
+3. As `pod-brain` runs (Architect → Builder → QA), the UI shows live progress, tool calls, and streamed model output.
+4. When the orchestrator pauses for human review (an `INTERRUPT` event), a modal lets the user approve or reject the design plan, optionally with extra instructions, and `POST /api/resume` continues the run.
+5. The final result (status, branch name, files written, PR URL when applicable) is rendered when the stream closes.
 
-- Node.js 18+
-- Python 3.12+
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
-- Any of the following package managers:
-  - npm (default)
-  - [pnpm](https://pnpm.io/installation)
-  - [yarn](https://classic.yarnpkg.com/lang/en/docs/install/)
-  - [bun](https://bun.sh/)
-- OpenAI API Key (for the LangGraph agent)
+## Run locally
 
-## Getting Started
-
-1. Install dependencies using your preferred package manager:
+Backend (in `apps/studio-api`):
 
 ```bash
-# Using npm (default)
+uv sync --all-packages
+uv run uvicorn main:app --app-dir apps/studio-api --reload --port 8000
+```
+
+Frontend (this folder):
+
+```bash
 npm install
-
-# Using pnpm
-pnpm install
-
-# Using yarn
-yarn install
-
-# Using bun
-bun install
-```
-
-This will also install the Python agent dependencies via `uv sync`.
-
-2. Set up your environment variables:
-
-```bash
-cp .env.example .env
-```
-
-Then edit the `.env` file and add your OpenAI API key:
-
-```bash
-OPENAI_API_KEY=your-openai-api-key-here
-```
-
-3. Start the development server:
-
-```bash
-# Using npm (default)
 npm run dev
-
-# Using pnpm
-pnpm dev
-
-# Using yarn
-yarn dev
-
-# Using bun
-bun run dev
 ```
 
-This will start both the UI and agent servers concurrently.
+Open `http://localhost:3000`. Override the backend URL with `NEXT_PUBLIC_API_BASE_URL` in `.env.local`.
 
-## Available Scripts
-
-The following scripts can also be run using your preferred package manager:
-
-- `dev` - Starts both UI and agent servers in development mode
-- `dev:debug` - Starts development servers with debug logging enabled
-- `dev:ui` - Starts only the Next.js UI server
-- `dev:agent` - Starts only the LangGraph agent server
-- `build` - Builds the Next.js application for production
-- `start` - Starts the production server
-- `install:agent` - Installs Python dependencies for the agent
-
-## Project Structure
+## Layout
 
 ```
-├── src/                         # Next.js frontend source
-│   ├── app/
-│   │   ├── page.tsx             # Main page
-│   │   └── api/copilotkit/      # CopilotKit API route
-│   ├── components/
-│   │   ├── example-canvas/      # Todo list UI
-│   │   ├── example-layout/      # Layout: chat + canvas side-by-side
-│   │   └── generative-ui/       # Example generative UI components
-│   └── hooks/
-├── agent/                       # LangGraph Python agent
-│   ├── main.py                  # Agent entry point
-│   └── src/
-│       ├── todos.py             # Todo tools and state schema
-│       └── query.py             # Example data query tool
-├── scripts/                     # Agent setup and run scripts
-│   ├── setup-agent.sh / .bat
-│   └── run-agent.sh / .bat
-├── public/                      # Static assets
-├── next.config.ts
-├── tsconfig.json
-└── package.json
+src/
+├── app/
+│   ├── layout.tsx          # ThemeProvider only — no CopilotKit
+│   ├── page.tsx            # Form ↔ Dashboard ↔ Result + review modal
+│   └── globals.css
+├── components/
+│   ├── run-form.tsx        # task + target_repo input
+│   ├── progress-dashboard.tsx  # live status, current node, activity log
+│   ├── human-review-modal.tsx  # opens on INTERRUPT
+│   ├── run-result.tsx      # final summary
+│   └── ui/                 # shadcn-style primitives
+├── hooks/
+│   ├── use-agentic-run.tsx # POST /api/run + /api/resume, SSE reducer
+│   └── use-theme.tsx
+└── lib/
+    ├── agui-events.ts      # event type definitions
+    ├── api.ts              # POST helpers
+    └── sse.ts              # POST-friendly SSE iterator
 ```
 
-## A2UI — Agent-to-User Interface
+## Backend contract
 
-This starter includes [A2UI](https://a2ui.org/specification/) support, allowing the agent to generate rich, interactive UI surfaces declaratively. Instead of returning plain text, the agent sends a JSON description of the UI it wants to render, and the frontend turns it into real components.
+`studio-api` emits the following SSE event types (see `apps/studio-api/routes/agui.py`):
 
-### How it works
+| Event                  | Meaning                                           |
+| ---------------------- | ------------------------------------------------- |
+| `NODE_STARTED`         | A LangGraph node (architect, builder, qa, …) ran. |
+| `TEXT_MESSAGE_CONTENT` | Streamed token from a chat model.                 |
+| `TOOL_CALL_START`      | A tool invocation began.                          |
+| `TOOL_CALL_END`        | The tool invocation finished.                     |
+| `INTERRUPT`            | The graph is paused waiting for human review.     |
+| `RUN_FINISHED`         | The graph completed without error.                |
+| `RUN_ERROR`            | An exception terminated the run.                  |
+| `DONE`                 | Stream is closed (sent unconditionally last).     |
 
-A2UI uses three concepts:
-
-1. **Catalog** — a set of component definitions (schema) paired with React renderers. Registered once in `layout.tsx` via `<CopilotKitProvider a2ui={{ catalog: demonstrationCatalog }}>`.
-2. **Surface** — a rendered UI instance. The agent creates a surface, sets its components, and binds data to it.
-3. **Operations** — the agent returns `a2ui.render(operations=[...])` from a tool, which the middleware streams to the frontend.
-
-### Two patterns
-
-| Pattern            | Description                                                                   | Agent tool       | Frontend                                    |
-| ------------------ | ----------------------------------------------------------------------------- | ---------------- | ------------------------------------------- |
-| **Fixed schema**   | Pre-defined component layout. Only the data changes per invocation.           | `search_flights` | Schema in `a2ui/schemas/flight_schema.json` |
-| **Dynamic schema** | A secondary LLM generates both components and data based on the conversation. | `generate_a2ui`  | Components decided at runtime               |
-
-Both patterns use the same catalog on the frontend — the difference is where the component tree comes from.
-
-### Key files
-
-| Purpose                              | Path                                               |
-| ------------------------------------ | -------------------------------------------------- |
-| Catalog definitions (Zod schemas)    | `src/app/declarative-generative-ui/definitions.ts` |
-| Catalog renderers (React components) | `src/app/declarative-generative-ui/renderers.tsx`  |
-| Catalog registration                 | `src/app/layout.tsx`                               |
-| Fixed-schema agent tool              | `agent/src/a2ui_fixed_schema.py`                   |
-| Dynamic-schema agent tool            | `agent/src/a2ui_dynamic_schema.py`                 |
-| Flight schema JSON                   | `agent/src/a2ui/schemas/flight_schema.json`        |
-| Showcase config                      | `showcase.json`                                    |
-
-### Adding a custom component
-
-1. **Define** the component schema in `definitions.ts`:
-
-   ```typescript
-   MyWidget: {
-     description: "A brief description for the agent.",
-     props: z.object({ title: z.string(), value: z.number() }),
-   },
-   ```
-
-2. **Render** it in `renderers.tsx`:
-
-   ```typescript
-   MyWidget: ({ props }) => (
-     <div>{props.title}: {props.value}</div>
-   ),
-   ```
-
-   Renderers are type-checked against the definitions — TypeScript will error if props don't match.
-
-3. **Use it** from the agent. The component is automatically available to both fixed-schema templates and the dynamic-schema LLM.
-
-### Adding a new fixed-schema tool
-
-1. Create a JSON schema file in `agent/src/a2ui/schemas/` describing the component tree.
-2. Create a Python tool that loads the schema with `a2ui.load_schema()` and returns `a2ui.render(operations=[...])` with your data. See `a2ui_fixed_schema.py` for the pattern.
-
-### Showcase mode
-
-`showcase.json` controls which suggestion pills are visually highlighted. Set `"showcase": "a2ui"` to highlight the A2UI demos, or `"showcase": "default"` for no highlights. This is configured automatically when scaffolding via `npx copilotkit create --framework a2ui`.
-
-### Further reading
-
-- [A2UI Specification](https://a2ui.org/specification/)
-- [CopilotKit A2UI Documentation](https://docs.copilotkit.ai)
-
-## Documentation
-
-- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/) - Learn more about LangGraph and its features
-- [CopilotKit Documentation](https://docs.copilotkit.ai) - Explore CopilotKit's capabilities
-
-## Contributing
-
-Feel free to submit issues and enhancement requests! This starter is designed to be easily extensible.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Troubleshooting
-
-### Agent Connection Issues
-
-If you see "I'm having trouble connecting to my tools", make sure:
-
-1. The LangGraph agent is running on port 8123
-2. Your OpenAI API key is set correctly
-3. Both servers started successfully
-
-### Python Dependencies
-
-If you encounter Python import errors:
-
-```bash
-npm run install:agent
-```
+The frontend's `use-agentic-run.tsx` hook reduces these into a single `RunState` object that the UI components observe.
