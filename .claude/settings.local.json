@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git merge *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\aleja\\\\Documents\\\\agentic_dev\" -Force)",
+      "Bash(Select-Object Name, Mode)"
+    ]
+  }
+}
