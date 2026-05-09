@@ -37,9 +37,14 @@ def create_branch(branch_name: str) -> str:
     _validate_branch_name(branch_name)
     repo = _get_repo()
 
-    existing = [b.name for b in repo.branches]
+    # Empty repo (no commits yet) — HEAD can't resolve, so create an initial commit first.
+    if not repo.head.is_valid():
+        repo.index.commit("chore: initial commit")
+
+    existing = {b.name: b for b in repo.branches}
     if branch_name in existing:
-        raise ValueError(f"Branch already exists: {branch_name!r}")
+        existing[branch_name].checkout()
+        return f"Branch already exists, checked out: {branch_name}"
 
     new_branch = repo.create_head(branch_name)
     new_branch.checkout()
