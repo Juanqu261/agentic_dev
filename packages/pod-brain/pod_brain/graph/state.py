@@ -59,6 +59,7 @@ class PodState(TypedDict):
     human_instructions: str
 
     # ── Artifacts ────────────────────────────────────────────────────────
+    conflicts: list[dict]
     branch_name: str | None
     pr_url: str | None
     error: str | None

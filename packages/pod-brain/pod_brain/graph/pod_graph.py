@@ -12,6 +12,8 @@ from langgraph.types import interrupt
 
 from pod_brain.agents.architect import architect_node
 from pod_brain.agents.builder import builder_node
+from pod_brain.agents.conflict_checker import conflict_checker_node
+from pod_brain.agents.pr_creator import pr_creator_node
 from pod_brain.agents.qa import qa_node
 from pod_brain.config import settings
 from pod_brain.graph.state import HumanDecision, PodState, QAResult
@@ -33,6 +35,17 @@ def supervisor_node(state: PodState) -> dict:
         return {"next_node": "architect", "current_node": "supervisor"}
 
     if node == "architect":
+        return {"next_node": "conflict_check", "current_node": "supervisor"}
+
+    if node == "conflict_check":
+        if state.get("conflicts"):
+            resume = interrupt(f"Conflict detected: {state['conflicts']}. Proceed anyway?")
+            if isinstance(resume, dict):
+                approved = resume.get("approved", False)
+            else:
+                approved = bool(resume)
+            if not approved:
+                return {"next_node": "done", "status": "failed", "current_node": "supervisor"}
         if state["builder_iterations"] == 0:
             resume = interrupt("Review the design plan before the Builder writes to the target repo.")
             if isinstance(resume, dict):
@@ -62,7 +75,10 @@ def supervisor_node(state: PodState) -> dict:
 
     if node == "human_review":
         decision: HumanDecision | None = state.get("human_decision")
+        qa: QAResult | None = state.get("qa_result")
         if decision and decision.approved:
+            if qa and qa.passed:
+                return {"next_node": "pr_creator", "status": "done", "current_node": "supervisor"}
             return {"next_node": "done", "status": "done", "current_node": "supervisor"}
         if decision and decision.override_target:
             return {"next_node": decision.override_target, "current_node": "supervisor"}
@@ -111,14 +127,17 @@ def build_graph(
     architect = partial(architect_node, tools=toolsets.architect)
     builder = partial(builder_node, tools=toolsets.builder)
     qa = partial(qa_node, tools=toolsets.qa)
+    pr_creator = partial(pr_creator_node, tools=toolsets.builder)
     tool_executor = ToolNode(toolsets.builder)
 
     graph_builder.add_node("supervisor", supervisor_node)
     graph_builder.add_node("architect", architect)
+    graph_builder.add_node("conflict_check", conflict_checker_node)
     graph_builder.add_node("builder", builder)
     graph_builder.add_node("tool_executor", tool_executor)
     graph_builder.add_node("qa", qa)
     graph_builder.add_node("human_review", _human_review_passthrough)
+    graph_builder.add_node("pr_creator", pr_creator)
 
     graph_builder.set_entry_point("supervisor")
 
@@ -127,12 +146,15 @@ def build_graph(
         _route_from_supervisor,
         {
             "architect": "architect",
+            "conflict_check": "conflict_check",
             "builder": "builder",
             "human_review": "human_review",
+            "pr_creator": "pr_creator",
             "done": END,
         },
     )
-    graph_builder.add_edge("architect", "supervisor")
+    graph_builder.add_edge("architect", "conflict_check")
+    graph_builder.add_edge("conflict_check", "supervisor")
     graph_builder.add_conditional_edges(
         "builder",
         _route_from_builder,
@@ -141,6 +163,7 @@ def build_graph(
     graph_builder.add_edge("tool_executor", "builder")
     graph_builder.add_edge("qa", "supervisor")
     graph_builder.add_edge("human_review", "supervisor")
+    graph_builder.add_edge("pr_creator", END)
 
     # ── Checkpointer selection ────────────────────────────────────────────
     # from_conn_string() on Async*Saver classes returns an async context manager
@@ -209,26 +232,38 @@ def _compile_graph(toolsets: AgentToolsets, checkpointer):
     architect = partial(architect_node, tools=toolsets.architect)
     builder = partial(builder_node, tools=toolsets.builder)
     qa = partial(qa_node, tools=toolsets.qa)
+    pr_creator = partial(pr_creator_node, tools=toolsets.builder)
     tool_executor = ToolNode(toolsets.builder)
 
     graph_builder.add_node("supervisor", supervisor_node)
     graph_builder.add_node("architect", architect)
+    graph_builder.add_node("conflict_check", conflict_checker_node)
     graph_builder.add_node("builder", builder)
     graph_builder.add_node("tool_executor", tool_executor)
     graph_builder.add_node("qa", qa)
     graph_builder.add_node("human_review", _human_review_passthrough)
+    graph_builder.add_node("pr_creator", pr_creator)
 
     graph_builder.set_entry_point("supervisor")
     graph_builder.add_conditional_edges(
         "supervisor", _route_from_supervisor,
-        {"architect": "architect", "builder": "builder", "human_review": "human_review", "done": END},
+        {
+            "architect": "architect",
+            "conflict_check": "conflict_check",
+            "builder": "builder",
+            "human_review": "human_review",
+            "pr_creator": "pr_creator",
+            "done": END,
+        },
     )
-    graph_builder.add_edge("architect", "supervisor")
+    graph_builder.add_edge("architect", "conflict_check")
+    graph_builder.add_edge("conflict_check", "supervisor")
     graph_builder.add_conditional_edges(
         "builder", _route_from_builder, {"tool_executor": "tool_executor", "qa": "qa"},
     )
     graph_builder.add_edge("tool_executor", "builder")
     graph_builder.add_edge("qa", "supervisor")
     graph_builder.add_edge("human_review", "supervisor")
+    graph_builder.add_edge("pr_creator", END)
 
     return graph_builder.compile(checkpointer=checkpointer)
