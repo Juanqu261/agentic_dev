@@ -33,7 +33,7 @@ User: "Build a login form for github.com/org/my-app"
 |---|---|---|
 | `packages/pod-brain/` | LangGraph agent graph (Architect, Builder, QA nodes) | **Done (Phase 1)** |
 | `packages/pod-mcp/` | MCP server: filesystem, shell, git tools on TARGET repos | **Done (Phase 2)** |
-| `packages/pod-memory/` | ChromaDB indexer/retriever for TARGET repo code | Scaffold only |
+| `packages/pod-memory/` | ChromaDB indexer/retriever for TARGET repo code | **Done (Phase 3)** |
 | `packages/pod-ui/` | React + CopilotKit dashboard for task assignment | Scaffold only |
 | `apps/studio-api/` | FastAPI — wires pod-brain + exposes AG-UI SSE endpoints | **Done (Phase 1–2)** |
 | `apps/studio-ui/` | Vite/Next app serving the dashboard | Scaffold only |
@@ -46,7 +46,7 @@ User: "Build a login form for github.com/org/my-app"
 |---|---|---|
 | `studio-api` (Brain API) | **8080** | FastAPI / uvicorn |
 | `pod-mcp` (MCP tool server) | **8001** | FastMCP over SSE |
-| `ChromaDB` | **8000** | Standard ChromaDB default |
+| `pod-memory` (ChromaDB layer) | **8000** | FastAPI + embedded ChromaDB |
 
 ## How to Run
 
@@ -60,8 +60,8 @@ TARGET_REPO_PATH=/path/to/target uv run uvicorn pod_mcp.server:app --app-dir pac
 # Terminal 2 — Brain API
 uv run uvicorn main:app --app-dir apps/studio-api --port 8080 --reload
 
-# Terminal 3 — ChromaDB (if using memory features)
-chroma run --port 8000
+# Terminal 3 — pod-memory (ChromaDB layer)
+uv run uvicorn pod_memory.server:app --app-dir packages/pod-memory --port 8000
 
 # Trigger a task
 curl -N -X POST http://localhost:8080/api/run \
@@ -125,5 +125,19 @@ Cross-member deps are linked locally (editable installs). Regenerate pip fallbac
 
 ---
 
-## What's Next (Phase 3 — The Mind & UI)
-- `packages/pod-memory/` — ChromaDB indexer/retriever for TARGET repo code
+---
+
+## Phase 3 — pod-memory (complete)
+
+**`packages/pod-memory/pod_memory/`** (FastAPI + embedded ChromaDB, port 8000)
+- `config.py` — `PodMemorySettings` (`POD_MEMORY_*` prefix, pydantic-settings)
+- `indexer.py` — walks target repo files, chunks (~400 tok), upserts into ChromaDB; skips `.git/`, `node_modules/`, binaries
+- `retriever.py` — `query(repo_id, text, n_results)` → `[{path, content, distance}]`
+- `routes/memory.py` — `POST /index`, `POST /query`, `DELETE /index`
+- `server.py` — FastAPI lifespan inits ChromaDB client + `SentenceTransformerEmbeddingFunction` on `app.state`
+
+**Connection to pod-brain:**
+- `packages/pod-brain/pod_brain/agents/architect.py` — pre-call to `POST /query` injects codebase context into Architect system prompt; failure is non-fatal (empty context fallback)
+
+## What's Next (Phase 4 — UI)
+- Connect studio-ui SSE stream to CopilotKit `useCoAgent` hook

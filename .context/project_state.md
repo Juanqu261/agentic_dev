@@ -9,7 +9,7 @@ Deployment options:
 - **Docker**: `docker run agentic-devstudio` pointed at a target repo
 
 ## Current Phase
-**Phase 2 — The Hands & Nerves (pod-mcp + AG-UI) — complete**
+**Phase 3 — The Mind (pod-memory ChromaDB layer) — complete**
 
 ## What's Done
 - [x] Monorepo structure scaffolded
@@ -36,8 +36,15 @@ Deployment options:
 - [x] `apps/studio-api/routes/agui.py` — AG-UI enriched: `NODE_STARTED`, `INTERRUPT`, `DONE` events
 - [x] `.env.example` — all env vars documented at repo root
 
-## What's Next (Phase 3 — The Mind)
-- [ ] Implement `packages/pod-memory/` — ChromaDB indexer/retriever for target repo code
+- [x] `packages/pod-memory/` — FastAPI + embedded ChromaDB semantic memory layer (port 8000)
+- [x] `pod_memory/config.py` — `PodMemorySettings` (`POD_MEMORY_*` prefix)
+- [x] `pod_memory/indexer.py` — file walker, chunker, ChromaDB upsert
+- [x] `pod_memory/retriever.py` — semantic query by repo_id
+- [x] `pod_memory/routes/memory.py` — `POST /index`, `POST /query`, `DELETE /index`
+- [x] `pod_memory/server.py` — FastAPI lifespan, ChromaDB client + embedding fn on `app.state`
+- [x] `pod_brain/agents/architect.py` — injects ChromaDB results into system prompt (non-fatal fallback)
+
+## What's Next (Phase 4 — UI)
 - [ ] Connect studio-ui SSE stream to CopilotKit `useCoAgent` hook
 
 ## Key Decisions Made
