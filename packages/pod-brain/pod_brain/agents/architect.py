@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import hashlib
-
-import chromadb
+import httpx
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
@@ -35,22 +33,15 @@ async def _query_pod_memory(
     chroma_url: str,
     n_results: int = 5,
 ) -> list[str]:
-    """
-    Retrieve semantically relevant code snippets from pod-memory's ChromaDB.
-    Collection is namespaced per target repo. Returns [] gracefully on any error
-    (new unindexed repo, ChromaDB unreachable, etc.).
-    """
-    collection_name = "repo_" + hashlib.md5(target_repo.encode()).hexdigest()[:12]
     try:
-        client = chromadb.AsyncHttpClient(host=chroma_url)
-        collection = await client.get_collection(collection_name)
-        results = await collection.query(
-            query_texts=[task],
-            n_results=n_results,
-            include=["documents"],
-        )
-        docs: list[str] = results["documents"][0] if results["documents"] else []
-        return docs
+        async with httpx.AsyncClient() as client:
+            r = await client.post(
+                f"{chroma_url}/query",
+                json={"repo_id": target_repo, "query": task, "n_results": n_results},
+                timeout=10.0,
+            )
+            r.raise_for_status()
+            return [c["content"] for c in r.json()["results"]]
     except Exception:
         return []
 

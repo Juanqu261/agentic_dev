@@ -1,7 +1,7 @@
-# Phase X Session Prompt — pod-memory (ChromaDB Layer)
+# Phase 3 Session Prompt — pod-memory (ChromaDB Layer)
 
 Copy this entire prompt as the first message in a new Claude Code session.
-It contains everything needed to build Phase X. Do NOT ask the agent to read
+It contains everything needed to build Phase 3. Do NOT ask the agent to read
 the full codebase — all relevant context is here.
 
 ---
@@ -12,7 +12,7 @@ the full codebase — all relevant context is here.
 semantic memory of the target repo's existing code. It wraps ChromaDB and exposes
 three HTTP endpoints. It runs on port **8000**.
 
-This is Phase X of Agentic DevStudio. Phases A and B are complete. Do not touch
+This is Phase 3 of Agentic DevStudio. Phases 1 and 2 are complete. Do not touch
 any other package. The only file outside `packages/pod-memory/` you will edit is
 `packages/pod-brain/pod_brain/agents/architect.py` — one small addition to inject
 ChromaDB query results into the Architect's context.
@@ -21,7 +21,7 @@ ChromaDB query results into the Architect's context.
 
 ## Architecture decision (read this fully)
 
-See `.context/decisions/00X-pod-memory-architecture.md` for the full ADR.
+See `.context/decisions/004-pod-memory-architecture.md` for the full ADR.
 Key points:
 
 - pod-memory is a **FastAPI** service (not MCP). pod-brain calls it via `httpx`.
