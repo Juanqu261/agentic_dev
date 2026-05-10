@@ -45,7 +45,7 @@ To prevent merge conflicts and human error:
 pip install uv
 
 # Clone and enter the repo
-git clone https://github.com/your-org/agentic-devstudio
+git clone https://github.com/your-org/agentic_dev.git
 cd agentic-devstudio
 
 # Install all dependencies
@@ -54,14 +54,14 @@ uv sync --all-extras
 
 # Configure environment
 Copy-Item .env.example .env
-# Open .env and set POD_BRAIN_ANTHROPIC_API_KEY and TARGET_REPO_PATH
+# Open .env and set POD_BRAIN_GEMINI_API_KEY
 ```
 
 ### 2. Start all backend services (Windows)
 
 ```powershell
 # Point at the repo you want agents to work on
-.\scripts\start_services.ps1 -TargetRepo "C:\path\to\your\target-repo"
+.\scripts\start_services.ps1
 ```
 
 This opens **three terminal windows** automatically:
