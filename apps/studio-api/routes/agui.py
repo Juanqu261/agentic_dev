@@ -3,14 +3,6 @@ from __future__ import annotations
 import json
 from typing import AsyncGenerator
 
-
-def _json_default(obj):
-    if hasattr(obj, "model_dump"):
-        return obj.model_dump()
-    if hasattr(obj, "dict"):
-        return obj.dict()
-    return str(obj)
-
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -54,6 +46,14 @@ class ResumeRequest(BaseModel):
     thread_id: str
     approved: bool
     instructions: str = ""
+
+
+def _json_default(obj):
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    if hasattr(obj, "dict"):
+        return obj.dict()
+    return str(obj)
 
 
 async def _stream_events(graph, initial_state, config) -> AsyncGenerator[str, None]:

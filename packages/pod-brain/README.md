@@ -30,14 +30,15 @@ User
 │  Compiled LangGraph StateGraph                      │
 │  ┌─────────────┐                                    │
 │  │  Supervisor │ ← pure Python routing function     │
-│  │  (no LLM)   │   reads state, decides next node  │
-│  └──────┬──────┘                                    │
+│  │  (no LLM)   │   reads state, decides next node   │
+│  │             │                                    │
+│  └──────┬──────┘                                    │ 
 │         │                                           │
-│    ┌────▼─────┐    ┌─────────────┐    ┌──────────┐ │
-│    │Architect │───▶│   Builder   │───▶│    QA    │ │
-│    │  (LLM)   │    │   (LLM +   │    │  (LLM +  │ │
-│    │          │    │  MCP tools) │    │ MCP tools│ │
-│    └──────────┘    └─────────────┘    └──────────┘ │
+│    ┌────▼─────┐     ┌─────────────┐      ┌────────┐ │
+│    │Architect │───▶ │  Builder    │───▶ │  QA    │ │
+│    │  (LLM)   │     │  (LLM + MCP)│      │ (LLM + │ │
+│    │          │     │             │      │ MCP)   │ │
+│    └──────────┘     └─────────────┘      └────────┘ │
 │                                                     │
 │  AsyncSqliteSaver checkpointer (per thread_id)      │
 └───────────────────┬─────────────────────────────────┘
