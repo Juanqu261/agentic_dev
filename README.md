@@ -57,23 +57,39 @@ Copy-Item .env.example .env
 # Open .env and set POD_BRAIN_GEMINI_API_KEY
 ```
 
-### 2. Start all backend services (Windows)
+### 2. Start services
+
+**Backend only** (API + agents, no UI):
 
 ```powershell
-.\scripts\start_services.ps1
+.\scripts\start_backend.ps1
 ```
 
-This opens **three terminal windows** automatically:
+Opens three named tabs in Windows Terminal:
 
-| Window | Service | Port |
+| Tab | Service | Port |
 |---|---|---|
-| Green | `pod-memory` — ChromaDB semantic index | 8000 |
-| Yellow | `pod-mcp` — filesystem / shell / git tools | 8001 |
-| Magenta | `studio-api` — agent orchestration API | 8080 |
+| Green `pod-memory` | ChromaDB semantic index | 8000 |
+| Yellow `pod-mcp` | Filesystem / shell / git tools | 8001 |
+| Magenta `studio-api` | Agent orchestration API | 8080 |
+
+**Full dev stack** (backend + frontend):
+
+```powershell
+.\scripts\start_dev.ps1
+```
+
+Opens the same three backend tabs plus:
+
+| Tab | Service | Port |
+|---|---|---|
+| Blue `studio-ui` | Next.js dashboard (`npm run dev`) | 3000 |
+
+Then open **http://localhost:3000** to assign tasks from the UI.
 
 Wait ~10 seconds for the sentence-transformer model to load before sending requests.
 
-### 3. Trigger your first task
+### 3. Trigger your first task (from backend only)
 
 ```powershell
 # Start a new agent run — replace the values with your task and repo name
