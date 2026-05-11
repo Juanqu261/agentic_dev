@@ -16,9 +16,9 @@ _MIN_TIMEOUT = 1
 
 
 @mcp.tool()
-async def execute_command(command: str, timeout: int = 30) -> str:
-    """Execute `command` inside TARGET_REPO_PATH. stdout and stderr are merged. Raises RuntimeError on non-zero exit or timeout."""
-    cwd = str(_repo_root())
+async def execute_command(command: str, repo_path: str, timeout: int = 30) -> str:
+    """Execute `command` inside the target repo. stdout and stderr are merged. Raises RuntimeError on non-zero exit or timeout."""
+    cwd = str(_repo_root(repo_path))
     timeout = min(max(_MIN_TIMEOUT, timeout), _MAX_TIMEOUT)
 
     def _run() -> tuple[str, int]:

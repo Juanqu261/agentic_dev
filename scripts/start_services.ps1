@@ -1,9 +1,5 @@
 # start_services.ps1 — Launch all Agentic DevStudio backend services
-# Usage: .\scripts\start_services.ps1 [-TargetRepo "C:\path\to\your\repo"]
-
-param(
-    [string]$TargetRepo = ""
-)
+# Usage: .\scripts\start_services.ps1
 
 $Root = Split-Path $PSScriptRoot -Parent
 
@@ -20,17 +16,7 @@ if (Test-Path $EnvFile) {
     exit 1
 }
 
-# Resolve TARGET_REPO_PATH: flag > .env > error
-if ($TargetRepo) {
-    $env:TARGET_REPO_PATH = $TargetRepo
-}
-if (-not $env:TARGET_REPO_PATH) {
-    Write-Error "TARGET_REPO_PATH is not set. Pass it via -TargetRepo or set it in .env."
-    exit 1
-}
-
 Write-Host "Starting Agentic DevStudio services..." -ForegroundColor Cyan
-Write-Host "  Target repo : $env:TARGET_REPO_PATH"
 Write-Host "  pod-memory  : http://localhost:8000"
 Write-Host "  pod-mcp     : http://localhost:8001"
 Write-Host "  studio-api  : http://localhost:8080"
@@ -44,7 +30,7 @@ Start-Sleep -Seconds 2
 
 # pod-mcp — MCP filesystem/shell/git tools
 Start-Process powershell -ArgumentList "-NoExit", "-Command",
-    "cd '$Root'; `$env:TARGET_REPO_PATH='$env:TARGET_REPO_PATH'; Write-Host '[pod-mcp] starting on :8001' -ForegroundColor Yellow; uv run uvicorn pod_mcp.server:app --app-dir packages/pod-mcp --port 8001"
+    "cd '$Root'; Write-Host '[pod-mcp] starting on :8001' -ForegroundColor Yellow; uv run uvicorn pod_mcp.server:app --app-dir packages/pod-mcp --port 8001"
 
 Start-Sleep -Seconds 2
 

@@ -4,7 +4,7 @@ MCP tool server for Agentic DevStudio. Gives AI agents (Architect, Builder, QA)
 controlled access to a **target repo** — filesystem, shell, and git — over SSE.
 
 Agents never touch the OS directly. Every call goes through this server,
-which enforces that all paths stay inside `TARGET_REPO_PATH`.
+which enforces that all paths stay inside the caller-supplied `repo_path`.
 
 ## Tools
 
@@ -25,11 +25,12 @@ which enforces that all paths stay inside `TARGET_REPO_PATH`.
 | `git_diff` | QA | Show staged or unstaged diff |
 | `open_pr` | Builder | Push branch and open a GitHub PR (requires `GITHUB_TOKEN`) |
 
+All tools accept a `repo_path` parameter — the absolute path to the target repo
+passed through from the frontend at request time.
+
 ## Run
 
 ```bash
-# Required env vars
-export TARGET_REPO_PATH=/absolute/path/to/target/repo
 export GITHUB_TOKEN=ghp_...   # only needed for open_pr
 
 uv run uvicorn pod_mcp.server:app --app-dir packages/pod-mcp --port 8001
@@ -40,7 +41,7 @@ pod-brain connects to it automatically via `POD_BRAIN_POD_MCP_URL`.
 
 ## Security
 
-- All paths are resolved and validated against `TARGET_REPO_PATH` before any I/O.
+- All paths are resolved and validated against the caller-provided `repo_path` before any I/O.
 - Symlinks that point outside the repo root are blocked.
-- `execute_command` cwd is hard-locked to `TARGET_REPO_PATH` — callers cannot change it.
+- `execute_command` cwd is hard-locked to `repo_path` — callers cannot change it.
 - Branch names are validated against a safe-character regex before any git operation.

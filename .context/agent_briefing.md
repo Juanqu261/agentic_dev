@@ -55,7 +55,7 @@ cp .env.example .env        # fill in your values
 uv sync --all-packages
 
 # Terminal 1 — MCP tool server
-TARGET_REPO_PATH=/path/to/target uv run uvicorn pod_mcp.server:app --app-dir packages/pod-mcp --port 8001
+uv run uvicorn pod_mcp.server:app --app-dir packages/pod-mcp --port 8001
 
 # Terminal 2 — Brain API
 uv run uvicorn main:app --app-dir apps/studio-api --port 8080 --reload
@@ -115,7 +115,7 @@ Cross-member deps are linked locally (editable installs). Regenerate pip fallbac
 - `server.py` — mounts SSE at `/mcp` via `mcp.sse_app()`; entry point for uvicorn
 - `tools/_security.py` — `_repo_root()` + `_safe_path()`: path traversal + symlink guard
 - `tools/filesystem.py` — `read_file`, `write_file`, `list_directory`, `search_files`
-- `tools/shell.py` — `execute_command` (cwd locked to `TARGET_REPO_PATH`, 1–300s cap)
+- `tools/shell.py` — `execute_command` (cwd locked to caller-supplied `repo_path`, 1–300s cap)
 - `tools/git_gatekeeper.py` — `create_branch` (GitPython, branch name validated)
 
 **`apps/studio-api/routes/agui.py`** — AG-UI event enrichment
@@ -138,7 +138,3 @@ Cross-member deps are linked locally (editable installs). Regenerate pip fallbac
 
 **Connection to pod-brain:**
 - `packages/pod-brain/pod_brain/agents/architect.py` — pre-call to `POST /query` injects codebase context into Architect system prompt; failure is non-fatal (empty context fallback)
-
-## What's Next (Phase 4 — UI)
-- Connect studio-ui SSE stream to CopilotKit `useCoAgent` hook
-

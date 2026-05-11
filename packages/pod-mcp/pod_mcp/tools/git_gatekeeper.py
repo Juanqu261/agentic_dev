@@ -19,8 +19,8 @@ def _validate_branch_name(name: str) -> None:
         raise ValueError(f"Branch name contains '..': {name!r}")
 
 
-def _get_repo() -> git.Repo:
-    return git.Repo(str(_repo_root()))
+def _get_repo(repo_path: str) -> git.Repo:
+    return git.Repo(str(_repo_root(repo_path)))
 
 
 def _parse_github_owner_repo(remote_url: str) -> str:
@@ -32,10 +32,10 @@ def _parse_github_owner_repo(remote_url: str) -> str:
 
 
 @mcp.tool()
-def create_branch(branch_name: str) -> str:
-    """Create and checkout a new branch in TARGET_REPO_PATH. Uses GitPython — no shell execution."""
+def create_branch(branch_name: str, repo_path: str) -> str:
+    """Create and checkout a new branch in the target repo. Uses GitPython — no shell execution."""
     _validate_branch_name(branch_name)
-    repo = _get_repo()
+    repo = _get_repo(repo_path)
 
     # Empty repo (no commits yet) — HEAD can't resolve, so create an initial commit first.
     if not repo.head.is_valid():
@@ -52,21 +52,21 @@ def create_branch(branch_name: str) -> str:
 
 
 @mcp.tool()
-def git_add(paths: list[str]) -> str:
-    """Stage files for the next commit. Paths are relative to TARGET_REPO_PATH."""
-    repo = _get_repo()
+def git_add(paths: list[str], repo_path: str) -> str:
+    """Stage files for the next commit. Paths are relative to repo_path."""
+    repo = _get_repo(repo_path)
     for path in paths:
-        _safe_path(path)  # validate each path stays inside the repo
+        _safe_path(path, repo_path)  # validate each path stays inside the repo
     repo.index.add(paths)
     return f"Staged: {', '.join(paths)}"
 
 
 @mcp.tool()
-def git_commit(message: str) -> str:
+def git_commit(message: str, repo_path: str) -> str:
     """Commit staged changes. Raises if nothing is staged."""
     if not message.strip():
         raise ValueError("Commit message cannot be empty")
-    repo = _get_repo()
+    repo = _get_repo(repo_path)
     if not repo.is_dirty(index=True):
         raise RuntimeError("Nothing staged to commit — run git_add first")
     commit = repo.index.commit(message)
@@ -74,20 +74,20 @@ def git_commit(message: str) -> str:
 
 
 @mcp.tool()
-def git_diff(staged: bool = False) -> str:
+def git_diff(repo_path: str, staged: bool = False) -> str:
     """Show git diff. staged=True shows staged changes (vs HEAD), False shows unstaged working-tree changes."""
-    repo = _get_repo()
+    repo = _get_repo(repo_path)
     return repo.git.diff("--staged") if staged else repo.git.diff()
 
 
 @mcp.tool()
-def open_pr(title: str, body: str, base: str = "main") -> str:
+def open_pr(title: str, body: str, repo_path: str, base: str = "main") -> str:
     """Push the current branch and open a GitHub Pull Request. Requires GITHUB_TOKEN env var."""
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
         raise RuntimeError("GITHUB_TOKEN env var is not set")
 
-    repo = _get_repo()
+    repo = _get_repo(repo_path)
     head_branch = repo.active_branch.name
     remote_url = repo.remotes.origin.url
     owner_repo = _parse_github_owner_repo(remote_url)

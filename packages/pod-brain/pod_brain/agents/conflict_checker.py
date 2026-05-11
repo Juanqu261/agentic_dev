@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import subprocess
 import sys
 import tempfile
@@ -45,7 +44,7 @@ async def conflict_checker_node(state: PodState) -> dict:
     if not target_files:
         return {"conflicts": [], "current_node": "conflict_check", "next_node": "supervisor"}
 
-    repo_path = os.environ.get("TARGET_REPO_PATH", "")
+    repo_path = state.get("target_repo", "")
     if not repo_path or not Path(repo_path).is_dir():
         return {"conflicts": [], "current_node": "conflict_check", "next_node": "supervisor"}
 

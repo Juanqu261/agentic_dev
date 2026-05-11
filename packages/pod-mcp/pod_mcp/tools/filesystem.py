@@ -8,24 +8,24 @@ from pod_mcp.tools._security import _repo_root, _safe_path
 
 
 @mcp.tool()
-def read_file(path: str) -> str:
-    """Read the entire UTF-8 contents of a file inside the target repo. `path` is relative to TARGET_REPO_PATH."""
-    return _safe_path(path).read_text(encoding="utf-8")
+def read_file(path: str, repo_path: str) -> str:
+    """Read the entire UTF-8 contents of a file inside the target repo. `path` is relative to repo_path."""
+    return _safe_path(path, repo_path).read_text(encoding="utf-8")
 
 
 @mcp.tool()
-def write_file(path: str, content: str) -> str:
-    """Write `content` to a file inside the target repo, creating parent directories as needed. `path` is relative to TARGET_REPO_PATH."""
-    safe = _safe_path(path)
+def write_file(path: str, content: str, repo_path: str) -> str:
+    """Write `content` to a file inside the target repo, creating parent directories as needed. `path` is relative to repo_path."""
+    safe = _safe_path(path, repo_path)
     safe.parent.mkdir(parents=True, exist_ok=True)
     safe.write_text(content, encoding="utf-8")
     return f"Written: {path}"
 
 
 @mcp.tool()
-def edit_file(path: str, old_string: str, new_string: str) -> str:
+def edit_file(path: str, old_string: str, new_string: str, repo_path: str) -> str:
     """Replace old_string with new_string in a file. Raises if old_string is not found or matches more than once (use a larger context to disambiguate)."""
-    safe = _safe_path(path)
+    safe = _safe_path(path, repo_path)
     content = safe.read_text(encoding="utf-8")
     count = content.count(old_string)
     if count == 0:
@@ -37,9 +37,9 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
 
 
 @mcp.tool()
-def delete_file(path: str) -> str:
-    """Delete a file inside the target repo. `path` is relative to TARGET_REPO_PATH."""
-    safe = _safe_path(path)
+def delete_file(path: str, repo_path: str) -> str:
+    """Delete a file inside the target repo. `path` is relative to repo_path."""
+    safe = _safe_path(path, repo_path)
     if not safe.exists():
         raise FileNotFoundError(f"File not found: {path!r}")
     if safe.is_dir():
@@ -49,9 +49,9 @@ def delete_file(path: str) -> str:
 
 
 @mcp.tool()
-def list_directory(path: str = ".") -> list[str]:
+def list_directory(repo_path: str, path: str = ".") -> list[str]:
     """List immediate children of a directory inside the target repo. Directories are suffixed with '/'."""
-    safe = _safe_path(path)
+    safe = _safe_path(path, repo_path)
     if not safe.is_dir():
         raise NotADirectoryError(f"{path!r} is not a directory")
     return sorted(
@@ -61,9 +61,9 @@ def list_directory(path: str = ".") -> list[str]:
 
 
 @mcp.tool()
-def get_file_tree(directory: str = ".", max_depth: int = 3) -> str:
+def get_file_tree(repo_path: str, directory: str = ".", max_depth: int = 3) -> str:
     """Return a recursive directory tree as a formatted string, up to max_depth levels deep."""
-    safe_dir = _safe_path(directory)
+    safe_dir = _safe_path(directory, repo_path)
     lines = [safe_dir.name + "/"]
 
     def _walk(path, prefix, depth):
@@ -85,10 +85,10 @@ def get_file_tree(directory: str = ".", max_depth: int = 3) -> str:
 
 
 @mcp.tool()
-def search_files(pattern: str, directory: str = ".") -> list[str]:
-    """Recursively glob for `pattern` inside `directory` within the target repo. Returns paths relative to TARGET_REPO_PATH."""
-    safe_dir = _safe_path(directory)
-    root = _repo_root()
+def search_files(pattern: str, repo_path: str, directory: str = ".") -> list[str]:
+    """Recursively glob for `pattern` inside `directory` within the target repo. Returns paths relative to repo_path."""
+    safe_dir = _safe_path(directory, repo_path)
+    root = _repo_root(repo_path)
     results = []
     for match in safe_dir.glob(pattern):
         resolved = match.resolve()
@@ -98,10 +98,10 @@ def search_files(pattern: str, directory: str = ".") -> list[str]:
 
 
 @mcp.tool()
-def find_in_files(pattern: str, directory: str = ".") -> list[str]:
+def find_in_files(pattern: str, repo_path: str, directory: str = ".") -> list[str]:
     """Search file contents for a regex pattern. Returns 'file:line:matched_line' strings. Skips binary files."""
-    safe_dir = _safe_path(directory)
-    root = _repo_root()
+    safe_dir = _safe_path(directory, repo_path)
+    root = _repo_root(repo_path)
     try:
         regex = re.compile(pattern)
     except re.error as exc:

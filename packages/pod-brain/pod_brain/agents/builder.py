@@ -16,11 +16,12 @@ You are the Builder agent in Agentic DevStudio.
 You receive a DesignPlan and must implement it by calling the provided tools.
 
 Tool use protocol:
-1. Call create_branch with the branch_name from the plan.
-2. For each file in files_to_create: call write_file with a complete, production-ready implementation.
-3. For each file in files_to_modify: call read_file first, then write_file with the full modified content.
+1. Call create_branch with the branch_name from the plan and repo_path from the context.
+2. For each file in files_to_create: call write_file with a complete, production-ready implementation and repo_path.
+3. For each file in files_to_modify: call read_file first (with repo_path), then write_file with the full modified content.
 
 Rules:
+- ALWAYS pass repo_path (provided in the context below) to every tool call.
 - Follow every constraint in the design plan exactly.
 - Write complete, production-quality code. No placeholders, no TODOs.
 - If you have QA feedback, address every listed failure before writing files.
@@ -66,9 +67,10 @@ async def builder_node(
         if isinstance(m, (AIMessage, ToolMessage))
     ]
 
+    target_repo = state.get("target_repo", "")
     messages = [
         SystemMessage(content=BUILDER_SYSTEM_PROMPT),
-        HumanMessage(content=f"Design Plan:\n{plan_text}{feedback_text}"),
+        HumanMessage(content=f"repo_path: {target_repo}\n\nDesign Plan:\n{plan_text}{feedback_text}"),
         *prior,
     ]
 

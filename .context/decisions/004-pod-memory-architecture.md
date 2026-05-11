@@ -30,7 +30,7 @@ the Builder or QA agent should call ad-hoc.
 
 ### What gets embedded
 
-Each file in `TARGET_REPO_PATH` is chunked and embedded at index time:
+Each file in the target repo is chunked and embedded at index time:
 
 | Field stored in ChromaDB | Value |
 |---|---|

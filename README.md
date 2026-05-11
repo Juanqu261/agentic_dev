@@ -54,14 +54,13 @@ uv sync --all-extras
 
 # Configure environment
 Copy-Item .env.example .env
-# Open .env and set POD_BRAIN_ANTHROPIC_API_KEY and TARGET_REPO_PATH
+# Open .env and set POD_BRAIN_GEMINI_API_KEY
 ```
 
 ### 2. Start all backend services (Windows)
 
 ```powershell
-# Point at the repo you want agents to work on
-.\scripts\start_services.ps1 -TargetRepo "C:\path\to\your\target-repo"
+.\scripts\start_services.ps1
 ```
 
 This opens **three terminal windows** automatically:
@@ -73,8 +72,6 @@ This opens **three terminal windows** automatically:
 | Magenta | `studio-api` — agent orchestration API | 8080 |
 
 Wait ~10 seconds for the sentence-transformer model to load before sending requests.
-
-> **`-TargetRepo`** sets the root directory the Builder and QA agents will read and write files in. It must be an absolute path to an existing local directory (your cloned project). You can also set `TARGET_REPO_PATH` in `.env` and omit the flag.
 
 ### 3. Trigger your first task
 
