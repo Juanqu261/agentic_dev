@@ -6,60 +6,6 @@ The orchestration core of Agentic DevStudio. A pure Python library that drives a
 
 ---
 
-## How a Request Flows Through the System
-
-```
-User
- │
- │  POST /api/run  { task, target_repo, thread_id }
- ▼
-┌─────────────────────────────────────────────────────┐
-│  apps/studio-api  (FastAPI)                         │
-│                                                     │
-│  • Validates request                                │
-│  • Builds initial PodState                          │
-│  • Calls graph.astream_events()                     │
-│  • Translates LangGraph events → AG-UI SSE events   │
-│  • Streams back to caller as text/event-stream      │
-└──────────────────────┬──────────────────────────────┘
-                       │  imports & calls
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│  pod-brain  (this package)                          │
-│                                                     │
-│  Compiled LangGraph StateGraph                      │
-│  ┌─────────────┐                                    │
-│  │  Supervisor │ ← pure Python routing function     │
-│  │  (no LLM)   │   reads state, decides next node   │
-│  │             │                                    │
-│  └──────┬──────┘                                    │ 
-│         │                                           │
-│    ┌────▼─────┐     ┌─────────────┐      ┌────────┐ │
-│    │Architect │───▶ │  Builder    │───▶ │  QA    │ │
-│    │  (LLM)   │     │  (LLM + MCP)│      │ (LLM + │ │
-│    │          │     │             │      │ MCP)   │ │
-│    └──────────┘     └─────────────┘      └────────┘ │
-│                                                     │
-│  AsyncSqliteSaver checkpointer (per thread_id)      │
-└───────────────────┬─────────────────────────────────┘
-          calls via │ SSE (http://localhost:8001/mcp)
-                    ▼
-┌─────────────────────────────────────────────────────┐
-│  pod-mcp  (MCP server — Phase 2)                    │
-│                                                     │
-│  read_file  write_file  list_directory              │
-│  search_files  execute_command  create_branch       │
-│                                                     │
-│  All operations target the EXTERNAL repo only       │
-└──────────────────────┬──────────────────────────────┘
-                       │ reads/writes
-                       ▼
-              [ Target repo on disk ]
-              e.g. /home/dev/my-app
-```
-
----
-
 ## Agent Graph Architecture
 
 ```mermaid
@@ -67,108 +13,124 @@ stateDiagram-v2
     [*] --> Supervisor : graph.ainvoke(initial_state)
 
     Supervisor --> Architect : current_node == "start"
+    Architect --> ConflictCheck : always
 
-    Architect --> Supervisor : returns DesignPlan
+    ConflictCheck --> Supervisor : returns conflicts list
 
-    Supervisor --> Supervisor : interrupt() fired\n(builder_iterations == 0)\nwaits for human approval
+    Supervisor --> Supervisor : interrupt() — conflict detected\nwaits for human decision
+    Supervisor --> Supervisor : interrupt() — first build gate\nwaits for human design review
 
-    Supervisor --> Builder : human approves design
+    Supervisor --> Builder : human approves
 
     Builder --> ToolExecutor : AIMessage has tool_calls
-    ToolExecutor --> Builder  : ToolMessages returned\n(ReAct loop)
-    Builder --> QA            : no more tool calls
+    ToolExecutor --> Builder  : ToolMessages returned (ReAct loop)
+    Builder --> QA : no more tool calls
 
     QA --> Supervisor : returns QAResult
 
-    Supervisor --> Builder   : failure_category == implementation_error\n&& iterations < max
-    Supervisor --> Architect : failure_category == design_error\n&& iterations < max
-    Supervisor --> HumanReview : QA passed\nOR loop limit reached\nOR environment_error
+    Supervisor --> Builder   : implementation_error && iterations < max
+    Supervisor --> Architect : design_error && iterations < max
+    Supervisor --> HumanReview : QA passed OR loop limit OR environment_error
 
-    HumanReview --> Supervisor : human_decision injected\nvia POST /api/resume
+    HumanReview --> Supervisor : HumanDecision injected via POST /api/resume
 
-    Supervisor --> [*] : approved → status=done\nrejected → status=failed
+    Supervisor --> PRCreator : approved && qa.passed
+    Supervisor --> [*] : approved (no QA pass) → done\nrejected → failed
+
+    PRCreator --> [*] : PR opened (or skipped if no GITHUB_TOKEN)
 ```
 
-### Node responsibilities
+---
 
-| Node | Model calls | What it does |
+## Nodes
+
+### Agent nodes
+The three nodes that make LLM calls and do the core reasoning work.
+
+| Node | LLM calls | What it does |
 |---|---|---|
-| **Supervisor** | None | Pure routing function. Reads `current_node` + `qa_result`, returns `next_node`. Fires `interrupt()` on first builder entry. |
-| **Architect** | 1× `with_structured_output(DesignPlan)` | Queries ChromaDB for context, produces a `DesignPlan` (files to create/modify, branch name, constraints). |
-| **Builder** | 1× `bind_tools(mcp_tools)` per iteration | Receives `DesignPlan`, calls MCP tools to write code into the target repo. Tool loop handled by graph edges (`Builder ↔ ToolExecutor`). |
+| **Architect** | 1× `with_structured_output(DesignPlan)` | Queries ChromaDB for codebase context, produces a `DesignPlan` (files to create/modify, branch name, constraints). |
+| **Builder** | 1× `bind_tools(mcp_tools)` per iteration | Receives `DesignPlan`, calls MCP tools to write code into the target repo. ReAct loop handled by graph edges (`Builder ↔ ToolExecutor`). |
 | **QA** | 2× LLM calls | Phase 1: ReAct tool loop runs lints/tests via `execute_command`. Phase 2: structured evaluator produces `QAResult`. |
-| **ToolExecutor** | None | LangGraph `ToolNode`. Executes MCP tool calls emitted by Builder and returns `ToolMessage` results. |
-| **HumanReview** | None | Passthrough node. Reached only after interrupt is resolved. Human injects `HumanDecision` via `/api/resume`. |
+
+### Pipeline nodes
+Non-LLM nodes that handle routing, gating, and side-effects. The main flow passes through them but doesn't revolve around them.
+
+| Node | What it does |
+|---|---|
+| **Supervisor** | Pure Python routing function. Reads `current_node` + `qa_result`, sets `next_node`. Fires `interrupt()` at the two human gates. |
+| **ConflictCheck** | Pre-flight: runs `git diff --name-only main...{branch}` for every active branch, compares against the plan's files. Non-fatal — failures return empty conflicts. |
+| **ToolExecutor** | LangGraph `ToolNode`. Executes MCP tool calls emitted by Builder/QA and returns `ToolMessage` results. |
+| **HumanReview** | Passthrough. Reached only after an interrupt is resumed. Human injects `HumanDecision` via `/api/resume`. |
+| **PRCreator** | Calls the `open_pr` MCP tool to push the branch and open a GitHub PR. Non-fatal — logs and continues if `GITHUB_TOKEN` is missing. |
 
 ---
 
 ## Human-in-the-Loop
 
-Two interrupt points exist in the graph:
+Two `interrupt()` points, both fired from inside `supervisor_node`:
 
-| Interrupt | When | How to resume |
+| Gate | When | Resume call |
 |---|---|---|
-| **Design review** | Before the first Builder run (supervisor fires `interrupt()` when `builder_iterations == 0`) | `POST /api/resume { thread_id, approved: true }` |
+| **Conflict override** | ConflictCheck found file overlap with another active branch | `POST /api/resume { thread_id, approved: true/false }` |
+| **Design review** | First Builder run — human approves the plan before any code is written | `POST /api/resume { thread_id, approved: true, instructions? }` |
 | **PR gate** | After QA passes — before any PR is opened | `POST /api/resume { thread_id, approved: true/false, override_target? }` |
 
-QA → Builder loop-backs do **not** re-trigger the interrupt. Only the first build requires human sign-off.
+QA → Builder loop-backs do **not** re-trigger an interrupt. Only the first build requires human sign-off.
 
-If the human sends `approved: false` with an `override_target`, the supervisor routes accordingly:
-- `"builder"` → re-run the Builder (e.g. human has a specific fix in mind)
-- `"architect"` → re-plan from scratch
-- `"done"` → terminate with `status: "failed"`
+`override_target` on rejection routes the supervisor to `"builder"`, `"architect"`, or `"done"`.
 
 ---
 
 ## Loop Protection
 
-If agents get stuck, the supervisor escalates rather than looping forever:
-
 ```
-builder_iterations >= max_builder_loops  →  human_review (escalate)
-architect_iterations >= max_architect_loops  →  human_review (escalate)
-failure_category == "environment_error"  →  human_review (always escalate)
+builder_iterations >= max_builder_loops    →  human_review (escalate)
+architect_iterations >= max_architect_loops →  human_review (escalate)
+failure_category == "environment_error"    →  human_review (always escalate)
 ```
 
-Configure limits via env vars: `POD_BRAIN_MAX_BUILDER_LOOPS`, `POD_BRAIN_MAX_ARCHITECT_LOOPS`.
+Configure via: `POD_BRAIN_MAX_BUILDER_LOOPS`, `POD_BRAIN_MAX_ARCHITECT_LOOPS`.
 
 ---
 
 ## Checkpointing
 
-Every graph super-step is checkpointed. This means:
-- If the server restarts mid-run, the graph resumes from the last checkpoint.
-- The human can review state at any time: `graph.get_state(config)`.
-- Each feature request is isolated by `thread_id`.
+Every graph super-step is checkpointed by `thread_id`. If the server restarts mid-run the graph resumes from the last checkpoint.
 
 | Environment | Checkpointer | Config |
 |---|---|---|
-| Local dev / tests | `AsyncSqliteSaver` (`:memory:` or file) | `POD_BRAIN_CHECKPOINTER_DB=./brain.db` |
-| Production / multi-user | `AsyncPostgresSaver` | `POD_BRAIN_CHECKPOINTER_DB=postgres://user:pw@host/db` |
-
-The swap is automatic: `build_graph()` inspects whether the DB string starts with `postgres://`.
+| Local dev / tests | `MemorySaver` or `SqliteSaver` | `POD_BRAIN_CHECKPOINTER_DB=./brain.db` |
+| Production | `AsyncPostgresSaver` | `POD_BRAIN_CHECKPOINTER_DB=postgres://user:pw@host/db` |
 
 ---
 
 ## MCP Tool Contract
 
 pod-brain connects to pod-mcp over SSE (`POD_BRAIN_POD_MCP_URL`, default `http://localhost:8001`).
-The tool names it expects **must match exactly** what pod-mcp exposes:
 
-| Tool name | Used by | Purpose |
+| Tool | Used by | Purpose |
 |---|---|---|
 | `read_file` | Architect, Builder, QA | Read a file from the target repo |
-| `write_file` | Builder | Write/overwrite a file in the target repo |
-| `list_directory` | Architect, Builder, QA | List directory contents |
-| `search_files` | Architect | Grep-style search across target repo |
-| `execute_command` | Builder, QA | Run shell commands (lint, test, etc.) in target repo |
-| `create_branch` | Builder | Create a git feature branch in target repo |
+| `write_file` | Builder | Write/overwrite a file |
+| `edit_file` | Builder | Surgical string replacement in a file |
+| `delete_file` | Builder | Delete a file |
+| `list_directory` | All | List directory contents |
+| `get_file_tree` | Architect | Recursive directory tree |
+| `search_files` | Architect | Glob search across target repo |
+| `find_in_files` | Architect, QA | Regex search across file contents |
+| `execute_command` | Builder, QA | Run shell commands (lint, test, etc.) |
+| `create_branch` | Builder | Create a git feature branch |
+| `git_add` | Builder | Stage files |
+| `git_commit` | Builder | Commit staged changes |
+| `git_diff` | QA | Show staged or unstaged diff |
+| `open_pr` | PRCreator | Push branch and open a GitHub PR |
+
+All tools require a `repo_path` argument — the absolute path to the target repo passed from the frontend at request time.
 
 ---
 
-## Configuration Reference
-
-All settings are read from env vars prefixed `POD_BRAIN_` or from a `.env` file at the repo root.
+## Configuration
 
 | Env var | Default | Description |
 |---|---|---|
@@ -184,17 +146,8 @@ All settings are read from env vars prefixed `POD_BRAIN_` or from a `.env` file 
 
 ## Running Tests
 
-Unit tests mock all LLM and MCP calls — no external services needed.
-
 ```bash
-# From repo root
 uv run pytest packages/pod-brain/tests/ -v
-
-# Specific test files
 uv run pytest packages/pod-brain/tests/test_supervisor.py -v   # routing logic
-uv run pytest packages/pod-brain/tests/test_architect.py -v    # architect node
 uv run pytest packages/pod-brain/tests/test_graph.py -v        # graph wiring
-
-# Integration tests (require Docker stack)
-uv run pytest packages/pod-brain/tests/ -v -m integration
 ```
